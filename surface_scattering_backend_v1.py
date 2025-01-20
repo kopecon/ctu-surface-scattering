@@ -3,7 +3,6 @@
 
 from PySide6.QtCore import QThread, Signal
 
-
 import os
 import time
 import numpy as np
@@ -26,8 +25,26 @@ from msl.equipment.resources.thorlabs import MotionControl
 import pandas as pd
 from datetime import timedelta
 
-
 print("library import done.")
+
+
+# Class representing the motor hardware
+class Motor:
+    pass
+
+
+# Class representing the motor controller hardware
+class MotorController:
+    def __init__(self, manufacturer: str, model: str, serial: str, address: str, backend: Backend):
+        self._manufacturer = manufacturer
+        self._model = model
+        self._serial = serial
+        self._address = address
+        self._backend = backend
+        self._record = EquipmentRecord(
+            manufacturer=self._manufacturer, model=self._model,  # update for your device
+            serial=self._serial,  # update for your device
+            connection=ConnectionRecord(address=self._address, backend=self._backend))
 
 
 class WorkerHome(QThread):
@@ -80,9 +97,7 @@ class WorkerHome(QThread):
         print("Connected to {}".format(self.motor))
 
         # all available channels from the device
-        print(
-            "Available channels are: {}".format(self.motor.max_channel_count())
-        )
+        print("Available channels are: {}".format(self.motor.max_channel_count()))
 
         # set the channel number of the Benchtop Stepper Motor to communicate with
         # channel = 1
@@ -96,7 +111,7 @@ class WorkerHome(QThread):
         time.sleep(1)
         print("Loaded setting for motor ", channel)
 
-        # the SBC_Open(serialNo) function in Kinesis is non-blocking and therefore we
+        # the SBC_Open(serialNo) function in Kinesis is non-blocking, and therefore we
         # should add a delay for Kinesis to establish communication with the serial port
         time.sleep(1)
 
@@ -248,9 +263,9 @@ class WorkerMove(QThread):
             s3 = float(s3)
 
             self.max = (
-                len(self.frange(f1, f1, s1))
-                * len(self.frange(f2, f2, s2))
-                * len(self.frangedouble(s3))
+                    len(self.frange(f1, f1, s1))
+                    * len(self.frange(f2, f2, s2))
+                    * len(self.frangedouble(s3))
             )
             print("Max = ", self.max)
 
@@ -259,7 +274,7 @@ class WorkerMove(QThread):
                 time.sleep(1)
                 self.motor.start_polling(channel[0], 200)
                 self.motor.move_to_position(channel[0],
-                                            self.motor.get_device_unit_from_real_value(channel[0], i, "DISTANCE"),)
+                                            self.motor.get_device_unit_from_real_value(channel[0], i, "DISTANCE"), )
                 self.wait(1, channel[0])
                 self.motor.stop_polling(channel[0])
 
@@ -365,8 +380,8 @@ class WorkerMove(QThread):
                         self.udateProgress(1)
                         print("Progres count: ", self.progressCount)
                         self.actual_progress = (
-                            100 / self.max
-                        ) * self.progressCount
+                                                       100 / self.max
+                                               ) * self.progressCount
                         print("Progress: ", self.actual_progress, " %")
                         self.on_progress.emit(
                             self.actual_progress
@@ -430,9 +445,9 @@ class WorkerMove(QThread):
             s3 = float(s3)
 
             self.max = (
-                len(self.frange(f1, t1, s1))
-                * len(self.frange(f2, t2, s2))
-                * len(self.frange(f3, t3, s3))
+                    len(self.frange(f1, t1, s1))
+                    * len(self.frange(f2, t2, s2))
+                    * len(self.frange(f3, t3, s3))
             )
             print("Max = ", max)
 
@@ -549,8 +564,8 @@ class WorkerMove(QThread):
                         self.udateProgress(1)
                         print("Progres count: ", self.progressCount)
                         self.actual_progress = (
-                            100 / self.max
-                        ) * self.progressCount
+                                                       100 / self.max
+                                               ) * self.progressCount
                         print("Progress: ", self.actual_progress, " %")
                         self.on_progress.emit(
                             self.actual_progress
@@ -592,3 +607,16 @@ class WorkerMove(QThread):
 
         print("\nThe default motor settings are:")
         pprint(self.motor.settings)
+
+
+# Define motor controller based on the hardware in the lab:
+BSC203ThreeChannelBenchtopStepperMotorController = MotorController(
+    manufacturer="Thorlabs",
+    model="BSC203",
+    serial="70224414",
+    address="SDK::Thorlabs.MotionControl.Benchtop.StepperMotor.dll",
+    backend=Backend.MSL)
+
+
+if __name__ == '__main__':
+    pass
