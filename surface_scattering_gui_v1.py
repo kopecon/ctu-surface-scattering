@@ -173,9 +173,9 @@ class Window(QMainWindow):
 
     def createLogo(self):
         logo_png = QPixmap("NUMlogo_200x93.png")
-        logo_png = logo_png.scaledToWidth(100, Qt.SmoothTransformation)
+        logo_png = logo_png.scaledToWidth(100, Qt.TransformationMode.SmoothTransformation)
         logo = QLabel()
-        logo.setAlignment(Qt.AlignRight)
+        logo.setAlignment(Qt.AlignmentFlag.AlignRight)
         logo.setPixmap(logo_png)
         return logo
 
@@ -195,6 +195,58 @@ class Window(QMainWindow):
             self._M2STEPValue.setEnabled(True)
             self._M3FROMValue.setEnabled(True)
             self._M3TOValue.setEnabled(True)
+
+    def updateLayoutAfterFinishedMove(self):
+        self._progressBar.setValue(0)
+        self._startMeasurement.setEnabled(True)
+        self._Home1.setEnabled(True)
+        self._Home2.setEnabled(True)
+        self._Home3.setEnabled(True)
+        print("Měření dokončeno.")
+
+    def daysHoursMinutesSeconds(self, dt):
+        return (
+            dt.days,  # days
+            dt.seconds // 3600,  # hours
+            (dt.seconds // 60) % 60,  # minutes
+            dt.seconds
+            - ((dt.seconds // 3600) * 3600)
+            - ((dt.seconds % 3600 // 60) * 60),
+            # seconds
+        )
+
+    def updateProgressBar(self, n):
+        self._progressBar.setValue(n)
+        print("Progress num:", n)
+
+    def updateProgressBarLabel(self, dm: float):
+        delta = timedelta(seconds=dm)
+        (days, hours, minutes, seconds) = self.daysHoursMinutesSeconds(delta)
+        n = (
+                str(days)
+                + "d "
+                + str(hours)
+                + "h "
+                + str(minutes)
+                + "m "
+                + str(seconds)
+                + "s"
+        )
+        self._labelTimeToFinishValue.setText(n)
+
+    def functionHome(self, motorNum, MXFromValue):
+        self.myworkerhome = WorkerHome(motorNum)
+        self.myworkerhome.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
+        self.myworkerhome.on_progress.connect(self.updateProgressBar)  # propojeni signalu
+
+        print("Clicked motor:", motorNum)
+        print("self.MXFromValue:", MXFromValue)
+        self._startMeasurement.setEnabled(False)
+        self._Home1.setEnabled(False)
+        self._Home2.setEnabled(False)
+        self._Home3.setEnabled(False)
+
+        self.myworkerhome.start()
 
     def functionMove(self):
         if self._oneDMeasurement.isChecked():
@@ -238,60 +290,6 @@ class Window(QMainWindow):
         self._Home3.setEnabled(False)
 
         self.myworkermove.start()
-
-    def updateLayoutAfterFinishedMove(self):
-        self._progressBar.setValue(0)
-        self._startMeasurement.setEnabled(True)
-        self._Home1.setEnabled(True)
-        self._Home2.setEnabled(True)
-        self._Home3.setEnabled(True)
-        print("Měření dokončeno.")
-
-    def daysHoursMinutesSeconds(self, dt):
-        return (
-            dt.days,  # days
-            dt.seconds // 3600,  # hours
-            (dt.seconds // 60) % 60,  # minutes
-            dt.seconds
-            - ((dt.seconds // 3600) * 3600)
-            - ((dt.seconds % 3600 // 60) * 60),
-            # seconds
-        )
-
-    def updateProgressBar(self, n):
-        self._progressBar.setValue(n)
-        print("Progress num:", n)
-
-    def updateProgressBarLabel(self, dm: float):
-        delta = timedelta(seconds=dm)
-        (days, hours, minutes, seconds) = self.daysHoursMinutesSeconds(delta)
-        n = (
-                str(days)
-                + "d "
-                + str(hours)
-                + "h "
-                + str(minutes)
-                + "m "
-                + str(seconds)
-                + "s"
-        )
-        self._labelTimeToFinishValue.setText(n)
-
-    def functionHome(self, motorNum, M1Fromvalue):
-        self.myworkerhome = WorkerHome(motorNum)
-        self.myworkerhome.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
-        self.myworkerhome.on_progress.connect(
-            self.updateProgressBar
-        )  # propojeni signalu
-
-        print("Clicket motor:", motorNum)
-        print("self.MXFROMvalue:", M1Fromvalue)
-        self._startMeasurement.setEnabled(False)
-        self._Home1.setEnabled(False)
-        self._Home2.setEnabled(False)
-        self._Home3.setEnabled(False)
-
-        self.myworkerhome.start()
 
 
 if __name__ == "__main__":
