@@ -30,6 +30,10 @@ class Window(QMainWindow):
         self.setWindowTitle("Thorlab 3 Wheel")
         self.setFixedSize(QSize(600, 600))
 
+        # Measurement arguments:
+        self.inputData = []
+        self.oneD = 0
+
         # Labels
         _labelMotorSetupTitle = self.label("Motors Setup:")
 
@@ -96,7 +100,7 @@ class Window(QMainWindow):
         # Checkbox
         self._oneDMeasurement = QCheckBox("1D Measurement", self)
         self._oneDMeasurement.setChecked(False)
-        self._oneDMeasurement.clicked.connect(self.functionOneDmeasurement)
+        self._oneDMeasurement.clicked.connect(self.disableValueEditing)
 
         # Logo
         logo = self.createLogo()
@@ -175,8 +179,8 @@ class Window(QMainWindow):
         logo.setPixmap(logo_png)
         return logo
 
-    def functionOneDmeasurement(self):
-        if self._oneDMeasurement.isChecked() == True:
+    def disableValueEditing(self):
+        if self._oneDMeasurement.isChecked():
             self._M1TOValue.setEnabled(False)
             self._M1STEPValue.setEnabled(False)
             self._M2TOValue.setEnabled(False)
@@ -193,14 +197,14 @@ class Window(QMainWindow):
             self._M3TOValue.setEnabled(True)
 
     def functionMove(self):
-        if self._oneDMeasurement.isChecked() == True:
-            self.oned = 1
+        if self._oneDMeasurement.isChecked():
+            self.oneD = 1
             print("1D measurement ON")
         else:
-            self.oned = 0
+            self.oneD = 0
             print("1D measurement OFF")
 
-        self.imputdata = [
+        self.inputData = [
             self._M1FROMValue.text(),
             self._M1TOValue.text(),
             self._M1STEPValue.text(),
@@ -211,19 +215,19 @@ class Window(QMainWindow):
             self._M3TOValue.text(),
             self._M3STEPValue.text(),
             self._MESPOINTSValue.text(),
-            self.oned,
+            self.oneD,
         ]
-        print("Data(functionMove): ", self.imputdata)
-        self.myworkermove = WorkerMove(self.imputdata)
+        print("Data(functionMove): ", self.inputData)
+        self.myworkermove = WorkerMove(self.inputData)
         self.myworkermove.finished.connect(
-            self.finihedMove
+            self.updateLayoutAfterFinishedMove
         )  # propojeni signalu
         self.myworkermove.on_progress.connect(
-            self.progressMove
+            self.updateProgressBar
         )  # propojeni signalu
 
         self.myworkermove.on_progress2.connect(
-            self.progressMove2
+            self.updateProgressBarLabel
         )  # propojeni signalu
 
         print("Run Move Function")
@@ -235,19 +239,15 @@ class Window(QMainWindow):
 
         self.myworkermove.start()
 
-    def finihedMove(self):
-        self._progressBar.setValue(100)
+    def updateLayoutAfterFinishedMove(self):
+        self._progressBar.setValue(0)
         self._startMeasurement.setEnabled(True)
         self._Home1.setEnabled(True)
         self._Home2.setEnabled(True)
         self._Home3.setEnabled(True)
-        print("konec")
+        print("Měření dokončeno.")
 
-    def progressMove(self, n):
-        self._progressBar.setValue(n)
-        print("Progress num:", n)
-
-    def days_hours_minutes_seconds(self, dt):
+    def daysHoursMinutesSeconds(self, dt):
         return (
             dt.days,  # days
             dt.seconds // 3600,  # hours
@@ -258,33 +258,33 @@ class Window(QMainWindow):
             # seconds
         )
 
-    def progressMove2(self, dm: float):
+    def updateProgressBar(self, n):
+        self._progressBar.setValue(n)
+        print("Progress num:", n)
+
+    def updateProgressBarLabel(self, dm: float):
         delta = timedelta(seconds=dm)
-        (days, hours, minutes, seconds) = self.days_hours_minutes_seconds(
-            delta
-        )
+        (days, hours, minutes, seconds) = self.daysHoursMinutesSeconds(delta)
         n = (
-            str(days)
-            + "d "
-            + str(hours)
-            + "h "
-            + str(minutes)
-            + "m "
-            + str(seconds)
-            + "s"
+                str(days)
+                + "d "
+                + str(hours)
+                + "h "
+                + str(minutes)
+                + "m "
+                + str(seconds)
+                + "s"
         )
         self._labelTimeToFinishValue.setText(n)
 
-    def functionHome(self, motornum, M1Fromvalue):
-        self.myworkerhome = WorkerHome(motornum)
-        self.myworkerhome.finished.connect(
-            self.finihedHome
-        )  # propojeni signalu
+    def functionHome(self, motorNum, M1Fromvalue):
+        self.myworkerhome = WorkerHome(motorNum)
+        self.myworkerhome.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
         self.myworkerhome.on_progress.connect(
-            self.progressHome
+            self.updateProgressBar
         )  # propojeni signalu
 
-        print("Clicket motor:", motornum)
+        print("Clicket motor:", motorNum)
         print("self.MXFROMvalue:", M1Fromvalue)
         self._startMeasurement.setEnabled(False)
         self._Home1.setEnabled(False)
@@ -292,18 +292,6 @@ class Window(QMainWindow):
         self._Home3.setEnabled(False)
 
         self.myworkerhome.start()
-
-    def finihedHome(self):
-        self._progressBar.setValue(0)
-        self._startMeasurement.setEnabled(True)
-        self._Home1.setEnabled(True)
-        self._Home2.setEnabled(True)
-        self._Home3.setEnabled(True)
-        print("Měření dokončeno.")
-
-    def progressHome(self, n):
-        self._progressBar.setValue(n)
-        print("Progress num:", n)
 
 
 if __name__ == "__main__":
