@@ -2,7 +2,6 @@
 # surface_scattering_v1 = GUI_GridnatacedlaV9 + Edit from "Kopecky Ondrej 2025"
 
 
-from unicodedata import numeric
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -16,8 +15,6 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QThread, Signal, QSize, Qt
 import sys
-from random import randrange
-import time
 
 import os
 import time
