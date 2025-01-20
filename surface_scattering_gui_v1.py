@@ -22,180 +22,178 @@ from surface_scattering_backend_v1 import WorkerHome, WorkerMove
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
+        _centralWidget = QWidget()
+        self.setCentralWidget(_centralWidget)
+        self._layout = QGridLayout()
+        _centralWidget.setLayout(self._layout)
 
         self.setWindowTitle("Thorlab 3 Wheel")
         self.setFixedSize(QSize(600, 600))
 
-        centralWidget = QWidget()
-        self.setCentralWidget(centralWidget)
+        # Labels
+        _labelMotorSetupTitle = self.label("Motors Setup:")
 
-        self.createLabels()
-        self.createLineEdits()
-        self.createButtons()
-        self.createProgressBars()
-        self.createLogo()
-        self.createCheckboxs()
+        _labelM1from = self.label("From")
+        _labelM1to = self.label("To")
+        _labelM1step = self.label("Step")
+        _labelM1 = self.label("Motor 1")
 
-        self.layout = QGridLayout()
-        centralWidget.setLayout(self.layout)
-        self.layout.addWidget(self.labelMSETUPtitle, 0, 0, 1, 1)
-        self.layout.addWidget(self.labelM1from, 1, 1, 1, 1)
-        self.layout.addWidget(self.labelM1to, 1, 2, 1, 1)
-        self.layout.addWidget(self.labelM1step, 1, 3, 1, 1)
-        self.layout.addWidget(self.labelM1, 2, 0, 1, 1)
-        self.layout.addWidget(self.labelM2from, 4, 1, 1, 1)
-        self.layout.addWidget(self.labelM2to, 4, 2, 1, 1)
-        self.layout.addWidget(self.labelM2step, 4, 3, 1, 1)
-        self.layout.addWidget(self.labelM2, 5, 0, 1, 1)
-        self.layout.addWidget(self.labelM3from, 6, 1, 1, 1)
-        self.layout.addWidget(self.labelM3to, 6, 2, 1, 1)
-        self.layout.addWidget(self.labelM3step, 6, 3, 1, 1)
-        self.layout.addWidget(self.labelM3, 7, 0, 1, 1)
-        self.layout.addWidget(self.labelMESSETUPtitle, 9, 0, 1, 1)
-        self.layout.addWidget(self.labelMESnum, 10, 0, 1, 1)
-        self.layout.addWidget(self.labelMESn, 10, 2, 1, 1)
-        self.layout.addWidget(self.labelHOMEtitle, 12, 0, 1, 1)
-        self.layout.addWidget(self.labelTIMEFtitle, 12, 3, 1, 1)
-        self.layout.addWidget(self.labelTIMEFvalue, 12, 4, 1, 1)
-        self.layout.addWidget(self.M1FROMvalue, 2, 1, 1, 1)
-        self.layout.addWidget(self.M1TOvalue, 2, 2, 1, 1)
-        self.layout.addWidget(self.M1STEPvalue, 2, 3, 1, 1)
-        self.layout.addWidget(self.M2FROMvalue, 5, 1, 1, 1)
-        self.layout.addWidget(self.M2TOvalue, 5, 2, 1, 1)
-        self.layout.addWidget(self.M2STEPvalue, 5, 3, 1, 1)
-        self.layout.addWidget(self.M3FROMvalue, 7, 1, 1, 1)
-        self.layout.addWidget(self.M3TOvalue, 7, 2, 1, 1)
-        self.layout.addWidget(self.M3STEPvalue, 7, 3, 1, 1)
-        self.layout.addWidget(self.MESPOINTSvalue, 10, 1, 1, 1)
-        self.layout.addWidget(self.STARTMESS, 11, 3, 1, 1)
-        self.layout.addWidget(self.HOME1, 13, 1, 1, 1)
-        self.layout.addWidget(self.HOME2, 14, 1, 1, 1)
-        self.layout.addWidget(self.HOME3, 15, 1, 1, 1)
-        self.layout.addWidget(self.Progress, 13, 3, 1, 2)
-        self.layout.addWidget(self.urlLabel, 17, 4, 1, 1)
-        self.layout.addWidget(self.mylogo, 0, 4, 1, 2)
-        self.layout.addWidget(self.onedmeasurement, 11, 4, 1, 1)
+        _labelM2from = self.label("From")
+        _labelM2to = self.label("To")
+        _labelM2step = self.label("Step")
+        _labelM2 = self.label("Motor 2")
 
-    def createLabels(self):
-        self.labelMSETUPtitle = self.createLabel("Motors Setup:")
+        _labelM3from = self.label("From")
+        _labelM3to = self.label("To")
+        _labelM3step = self.label("Step")
+        _labelM3 = self.label("Motor 3")
 
-        self.labelM1from = self.createLabel("From")
-        self.labelM1to = self.createLabel("To")
-        self.labelM1step = self.createLabel("Step")
-        self.labelM1 = self.createLabel("Motor 1")
+        _labelMeasurementSetupTitle = self.label("Measurement Setup:")
 
-        self.labelM2from = self.createLabel("From")
-        self.labelM2to = self.createLabel("To")
-        self.labelM2step = self.createLabel("Step")
-        self.labelM2 = self.createLabel("Motor 2")
+        _labelMeasurementNum = self.label("N Measurement points")
+        _labelMeasurementN = self.label("[n]")
 
-        self.labelM3from = self.createLabel("From")
-        self.labelM3to = self.createLabel("To")
-        self.labelM3step = self.createLabel("Step")
-        self.labelM3 = self.createLabel("Motor 3")
+        _labelHomeTitle = self.label("Homing:")
 
-        self.labelMESSETUPtitle = self.createLabel("Measurement Setup:")
+        _labelTimeToFinishTitle = self.label("Time to Finish:")
+        self._labelTimeToFinishValue = self.label("0d 0h 0m 0s")
 
-        self.labelMESnum = self.createLabel("N Measurement points")
-        self.labelMESn = self.createLabel("[n]")
-
-        self.labelHOMEtitle = self.createLabel("Homing:")
-
-        self.labelTIMEFtitle = self.createLabel("Time to Finish:")
-        self.labelTIMEFvalue = self.createLabel("0d 0h 0m 0s")
-
-        self.urlLabel = self.createLabel(
+        _urlLabel = self.label(
             f"<a href='https://www.numsolution.cz/'>https://www.numsolution.cz/</a>"
         )
-        self.urlLabel.setOpenExternalLinks(True)
+        _urlLabel.setOpenExternalLinks(True)
 
-    def createLabel(self, text: str) -> QLabel:
+        # Line edits
+        self._M1FROMValue = self.lineEdit("0")
+        self._M1TOValue = self.lineEdit("90")
+        self._M1STEPValue = self.lineEdit("30")
+
+        self._M2FROMValue = self.lineEdit("90")
+        self._M2TOValue = self.lineEdit("180")
+        self._M2STEPValue = self.lineEdit("30")
+
+        self._M3FROMValue = self.lineEdit("0")
+        self._M3TOValue = self.lineEdit("90")
+        self._M3STEPValue = self.lineEdit("30")
+
+        self._MESPOINTSValue = self.lineEdit("500")
+
+        # Buttons
+        self._startMeasurement = self.pushButton("Start Measurement")
+        self._Home1 = self.pushButton("Motor 1 Home")
+        self._Home2 = self.pushButton("Motor 2 Home")
+        self._Home3 = self.pushButton("Motor 3 Home")
+
+        self._startMeasurement.clicked.connect(lambda: self.functionMove())
+
+        self._Home1.clicked.connect(lambda: self.functionHome(1, self._M1FROMValue.text()))
+        self._Home2.clicked.connect(lambda: self.functionHome(2, self._M2FROMValue.text()))
+        self._Home3.clicked.connect(lambda: self.functionHome(3, self._M3FROMValue.text()))
+
+        # Progress bar
+        self._progressBar = self.createProgressBar(0)
+
+        # Checkbox
+        self._oneDMeasurement = QCheckBox("1D Measurement", self)
+        self._oneDMeasurement.setChecked(False)
+        self._oneDMeasurement.clicked.connect(self.functionOneDmeasurement)
+
+        # Logo
+        logo = self.createLogo()
+
+        # Place and display created widgets
+        self._layout.addWidget(_labelMotorSetupTitle, 0, 0, 1, 1)
+        self._layout.addWidget(_labelM1from, 1, 1, 1, 1)
+        self._layout.addWidget(_labelM1to, 1, 2, 1, 1)
+        self._layout.addWidget(_labelM1step, 1, 3, 1, 1)
+        self._layout.addWidget(_labelM1, 2, 0, 1, 1)
+        self._layout.addWidget(_labelM2from, 4, 1, 1, 1)
+        self._layout.addWidget(_labelM2to, 4, 2, 1, 1)
+        self._layout.addWidget(_labelM2step, 4, 3, 1, 1)
+        self._layout.addWidget(_labelM2, 5, 0, 1, 1)
+        self._layout.addWidget(_labelM3from, 6, 1, 1, 1)
+        self._layout.addWidget(_labelM3to, 6, 2, 1, 1)
+        self._layout.addWidget(_labelM3step, 6, 3, 1, 1)
+        self._layout.addWidget(_labelM3, 7, 0, 1, 1)
+        self._layout.addWidget(_labelMeasurementSetupTitle, 9, 0, 1, 1)
+        self._layout.addWidget(_labelMeasurementNum, 10, 0, 1, 1)
+        self._layout.addWidget(_labelMeasurementN, 10, 2, 1, 1)
+        self._layout.addWidget(_labelHomeTitle, 12, 0, 1, 1)
+        self._layout.addWidget(_labelTimeToFinishTitle, 12, 3, 1, 1)
+        self._layout.addWidget(self._labelTimeToFinishValue, 12, 4, 1, 1)
+        self._layout.addWidget(self._M1FROMValue, 2, 1, 1, 1)
+        self._layout.addWidget(self._M1TOValue, 2, 2, 1, 1)
+        self._layout.addWidget(self._M1STEPValue, 2, 3, 1, 1)
+        self._layout.addWidget(self._M2FROMValue, 5, 1, 1, 1)
+        self._layout.addWidget(self._M2TOValue, 5, 2, 1, 1)
+        self._layout.addWidget(self._M2STEPValue, 5, 3, 1, 1)
+        self._layout.addWidget(self._M3FROMValue, 7, 1, 1, 1)
+        self._layout.addWidget(self._M3TOValue, 7, 2, 1, 1)
+        self._layout.addWidget(self._M3STEPValue, 7, 3, 1, 1)
+        self._layout.addWidget(self._MESPOINTSValue, 10, 1, 1, 1)
+        self._layout.addWidget(self._startMeasurement, 11, 3, 1, 1)
+        self._layout.addWidget(self._Home1, 13, 1, 1, 1)
+        self._layout.addWidget(self._Home2, 14, 1, 1, 1)
+        self._layout.addWidget(self._Home3, 15, 1, 1, 1)
+        self._layout.addWidget(self._progressBar, 13, 3, 1, 2)
+        self._layout.addWidget(_urlLabel, 17, 4, 1, 1)
+        self._layout.addWidget(logo, 0, 4, 1, 2)
+        self._layout.addWidget(self._oneDMeasurement, 11, 4, 1, 1)
+
+    # --------- Functions to make creating widgets easier ----------------
+    @staticmethod
+    def label(text: str) -> QLabel:
         label = QLabel()
         label.setText(text)
         return label
 
-    def createLineEdits(self):
-        self.M1FROMvalue = self.createLineEdit("0")
-        self.M1TOvalue = self.createLineEdit("90")
-        self.M1STEPvalue = self.createLineEdit("30")
-
-        self.M2FROMvalue = self.createLineEdit("90")
-        self.M2TOvalue = self.createLineEdit("180")
-        self.M2STEPvalue = self.createLineEdit("30")
-
-        self.M3FROMvalue = self.createLineEdit("0")
-        self.M3TOvalue = self.createLineEdit("90")
-        self.M3STEPvalue = self.createLineEdit("30")
-
-        self.MESPOINTSvalue = self.createLineEdit("500")
-
-    def createLineEdit(self, text: str) -> QLineEdit:
+    @staticmethod
+    def lineEdit(text: str) -> QLineEdit:
         lineEdit = QLineEdit()
         lineEdit.setText(text)
         return lineEdit
 
-    def createButtons(self):
-        self.STARTMESS = self.createButton("Start Measurement")
-        self.HOME1 = self.createButton("Motor 1 Home")
-        self.HOME2 = self.createButton("Motor 2 Home")
-        self.HOME3 = self.createButton("Motor 3 Home")
-
-        self.STARTMESS.clicked.connect(lambda: self.functionMove())
-
-        self.HOME1.clicked.connect(
-            lambda: self.functionHome(1, self.M1FROMvalue.text())
-        )
-        self.HOME2.clicked.connect(
-            lambda: self.functionHome(2, self.M2FROMvalue.text())
-        )
-        self.HOME3.clicked.connect(
-            lambda: self.functionHome(3, self.M3FROMvalue.text())
-        )
-
-    def createButton(self, text: str) -> QPushButton:
+    @staticmethod
+    def pushButton(text: str) -> QPushButton:
         pushButton = QPushButton()
         pushButton.setText(text)
         return pushButton
 
-    def createProgressBars(self):
-        self.Progress = self.createProgressBar(0)
-
-    def createProgressBar(self, num: int) -> QProgressBar:
+    @staticmethod
+    def createProgressBar(num: int) -> QProgressBar:
         progressBar = QProgressBar()
         progressBar.setValue(num)
         return progressBar
 
-    def createLogo(self):
-        self.LOGO = QPixmap("NUMlogo_200x93.png")
-        self.LOGO = self.LOGO.scaledToWidth(100, Qt.SmoothTransformation)
-        self.mylogo = QLabel()
-        self.mylogo.setAlignment(Qt.AlignRight)
-        self.mylogo.setPixmap(self.LOGO)
+    # -----------------------------------------------------------------------
 
-    def createCheckboxs(self):
-        self.onedmeasurement = QCheckBox("1D Measurement", self)
-        self.onedmeasurement.setChecked(False)
-        self.onedmeasurement.clicked.connect(self.functionOneDmeasurement)
+    def createLogo(self):
+        logo_png = QPixmap("NUMlogo_200x93.png")
+        logo_png = logo_png.scaledToWidth(100, Qt.SmoothTransformation)
+        logo = QLabel()
+        logo.setAlignment(Qt.AlignRight)
+        logo.setPixmap(logo_png)
+        return logo
 
     def functionOneDmeasurement(self):
-        if self.onedmeasurement.isChecked() == True:
-            self.M1TOvalue.setEnabled(False)
-            self.M1STEPvalue.setEnabled(False)
-            self.M2TOvalue.setEnabled(False)
-            self.M2STEPvalue.setEnabled(False)
-            self.M3FROMvalue.setEnabled(False)
-            self.M3TOvalue.setEnabled(False)
+        if self._oneDMeasurement.isChecked() == True:
+            self._M1TOValue.setEnabled(False)
+            self._M1STEPValue.setEnabled(False)
+            self._M2TOValue.setEnabled(False)
+            self._M2STEPValue.setEnabled(False)
+            self._M3FROMValue.setEnabled(False)
+            self._M3TOValue.setEnabled(False)
 
         else:
-            self.M1TOvalue.setEnabled(True)
-            self.M1STEPvalue.setEnabled(True)
-            self.M2TOvalue.setEnabled(True)
-            self.M2STEPvalue.setEnabled(True)
-            self.M3FROMvalue.setEnabled(True)
-            self.M3TOvalue.setEnabled(True)
+            self._M1TOValue.setEnabled(True)
+            self._M1STEPValue.setEnabled(True)
+            self._M2TOValue.setEnabled(True)
+            self._M2STEPValue.setEnabled(True)
+            self._M3FROMValue.setEnabled(True)
+            self._M3TOValue.setEnabled(True)
 
     def functionMove(self):
-        if self.onedmeasurement.isChecked() == True:
+        if self._oneDMeasurement.isChecked() == True:
             self.oned = 1
             print("1D measurement ON")
         else:
@@ -203,16 +201,16 @@ class Window(QMainWindow):
             print("1D measurement OFF")
 
         self.imputdata = [
-            self.M1FROMvalue.text(),
-            self.M1TOvalue.text(),
-            self.M1STEPvalue.text(),
-            self.M2FROMvalue.text(),
-            self.M2TOvalue.text(),
-            self.M2STEPvalue.text(),
-            self.M3FROMvalue.text(),
-            self.M3TOvalue.text(),
-            self.M3STEPvalue.text(),
-            self.MESPOINTSvalue.text(),
+            self._M1FROMValue.text(),
+            self._M1TOValue.text(),
+            self._M1STEPValue.text(),
+            self._M2FROMValue.text(),
+            self._M2TOValue.text(),
+            self._M2STEPValue.text(),
+            self._M3FROMValue.text(),
+            self._M3TOValue.text(),
+            self._M3STEPValue.text(),
+            self._MESPOINTSValue.text(),
             self.oned,
         ]
         print("Data(functionMove): ", self.imputdata)
@@ -230,23 +228,23 @@ class Window(QMainWindow):
 
         print("Run Move Function")
 
-        self.STARTMESS.setEnabled(False)
-        self.HOME1.setEnabled(False)
-        self.HOME2.setEnabled(False)
-        self.HOME3.setEnabled(False)
+        self._startMeasurement.setEnabled(False)
+        self._Home1.setEnabled(False)
+        self._Home2.setEnabled(False)
+        self._Home3.setEnabled(False)
 
         self.myworkermove.start()
 
     def finihedMove(self):
-        self.Progress.setValue(100)
-        self.STARTMESS.setEnabled(True)
-        self.HOME1.setEnabled(True)
-        self.HOME2.setEnabled(True)
-        self.HOME3.setEnabled(True)
+        self._progressBar.setValue(100)
+        self._startMeasurement.setEnabled(True)
+        self._Home1.setEnabled(True)
+        self._Home2.setEnabled(True)
+        self._Home3.setEnabled(True)
         print("konec")
 
     def progressMove(self, n):
-        self.Progress.setValue(n)
+        self._progressBar.setValue(n)
         print("Progress num:", n)
 
     def days_hours_minutes_seconds(self, dt):
@@ -275,7 +273,7 @@ class Window(QMainWindow):
             + str(seconds)
             + "s"
         )
-        self.labelTIMEFvalue.setText(n)
+        self._labelTimeToFinishValue.setText(n)
 
     def functionHome(self, motornum, M1Fromvalue):
         self.myworkerhome = WorkerHome(motornum)
@@ -288,28 +286,28 @@ class Window(QMainWindow):
 
         print("Clicket motor:", motornum)
         print("self.MXFROMvalue:", M1Fromvalue)
-        self.STARTMESS.setEnabled(False)
-        self.HOME1.setEnabled(False)
-        self.HOME2.setEnabled(False)
-        self.HOME3.setEnabled(False)
+        self._startMeasurement.setEnabled(False)
+        self._Home1.setEnabled(False)
+        self._Home2.setEnabled(False)
+        self._Home3.setEnabled(False)
 
         self.myworkerhome.start()
 
     def finihedHome(self):
-        self.Progress.setValue(0)
-        self.STARTMESS.setEnabled(True)
-        self.HOME1.setEnabled(True)
-        self.HOME2.setEnabled(True)
-        self.HOME3.setEnabled(True)
-        print("konec")
+        self._progressBar.setValue(0)
+        self._startMeasurement.setEnabled(True)
+        self._Home1.setEnabled(True)
+        self._Home2.setEnabled(True)
+        self._Home3.setEnabled(True)
+        print("Měření dokončeno.")
 
     def progressHome(self, n):
-        self.Progress.setValue(n)
+        self._progressBar.setValue(n)
         print("Progress num:", n)
 
 
 if __name__ == "__main__":
-    # Create the Qt Applocation
+    # Create the Qt Application
     app = QApplication([])
     window = Window()
     window.show()
