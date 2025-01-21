@@ -112,15 +112,15 @@ class MotorController:
             manufacturer=self._manufacturer, model=self._model,  # update for your device
             serial=self._serial,  # update for your device
             connection=ConnectionRecord(address=self._address, backend=self._backend))
-        self._channels = []  # List of available channels
-        self._motors = []  # List of available motors
+        self.channels = []  # List of available channels
+        self.motors = []  # List of available motors
         # But we know there are 3 motors, so we add a variable for each motor
-        self.motor_1 = self._motors[0]
-        self.motor_2 = self._motors[1]
-        self.motor_3 = self._motors[2]
+        self.motor_1 = self.motors[0]
+        self.motor_2 = self.motors[1]
+        self.motor_3 = self.motors[2]
 
-        for i, chanel in enumerate(self._channels):
-            self._motors.append(Motor(self, i+1))
+        for i, chanel in enumerate(self.channels):
+            self.motors.append(Motor(self, i + 1))
 
     def connect(self):
         _motorController = None
@@ -129,7 +129,7 @@ class MotorController:
             print("Record set up successfully.")
             _motorController.build_device_list()
             print("Device list built successfully.")
-            self._channels = list(
+            self.channels = list(
                 range(1, _motorController.max_channel_count()))  # Scan how many channels are on the device
         except OSError:
             print("No devices found.")
