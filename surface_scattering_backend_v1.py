@@ -28,26 +28,26 @@ from datetime import timedelta
 
 # Class representing the motor hardware
 class Motor:
-    def __init__(self, parent, motorID, polling_rate=200):
-        self.motorID = motorID
+    def __init__(self, parent, motor_id, polling_rate=200):
+        self.motor_id = motor_id
         self._parent = parent
         self._position_device_unit = None
         self._position_real_unit = None
-        self._polling_rate = 200
+        self._polling_rate = polling_rate
         self._controller = parent.connectedController
 
     def _wait(self, value: int):
-        self._controller.clear_message_queue(self.motorID)
-        message_type, message_id, _ = self._controller.wait_for_message(self.motorID)
+        self._controller.clear_message_queue(self.motor_id)
+        message_type, message_id, _ = self._controller.wait_for_message(self.motor_id)
         while message_type != 2 or message_id != value:
-            position = self.getPosition()
+            position = self.get_position()
             print(f"At position {position[0]} [device units] {position[1]} [real-world units]")
-            message_type, message_id, _ = self._controller.wait_for_message(self.motorID)
+            message_type, message_id, _ = self._controller.wait_for_message(self.motor_id)
 
     # Wrappers for controlling the motors
     def _load_settings(self):
         if self._parent is not None:
-            self._controller.load_settings(self.motorID)
+            self._controller.load_settings(self.motor_id)
             print("Motor setting loaded.")
             time.sleep(2)  # TODO Check if delay is necessary and how long
         else:
@@ -55,24 +55,23 @@ class Motor:
 
     def _start_polling(self, rate=200):
         if self._parent is not None:
-            self._controller.start_polling(self.motorID, rate)
+            self._controller.start_polling(self.motor_id, rate)
             print("Polling started...")
         else:
             print("Not connected to controller.")
 
     def _stop_polling(self):
         if self._parent is not None:
-            self._controller.stop_polling(self.motorID)
+            self._controller.stop_polling(self.motor_id)
             print("Polling stopped.")
         else:
             print("Not connected to controller.")
 
-    def getPosition(self):
-        self._position_device_unit = self._controller.get_position(self.motorID)
+    def get_position(self):
+        self._position_device_unit = self._controller.get_position(self.motor_id)
         self._position_real_unit = self._controller.get_real_value_from_device_unit(
-            self.motorID, self._position_device_unit, "DISTANCE")
-        print(f"At position: {self._position_device_unit} [device units]")
-        print(f"At position: {self._position_real_unit} [real units]")
+            self.motor_id, self._position_device_unit, "DISTANCE")
+        print(f"At position: {self._position_device_unit} [device units], {self._position_real_unit} [real units]")
         return self._position_device_unit, self._position_real_unit
 
     def home(self):
@@ -81,19 +80,29 @@ class Motor:
             self._start_polling(rate=self._polling_rate)
 
             print("Initial position:")
-            self.getPosition()
+            self.get_position()
             print("Homing parameters:")
-            print(self._controller.is_calibration_active(self.motorID))
-
-            self._controller.home(self.motorID)
-            print(f"Homing motor {self.motorID}...")
+            print(self._controller.is_calibration_active(self.motor_id))
+            # TODO Add limit checking and direction change based on position
+            self._controller.home(self.motor_id)
+            print(f"Homing motor {self.motor_id}...")
             self._wait(0)
             time.sleep(1)
-            self.getPosition()
+            self.get_position()
             self._stop_polling()
-            print(f"Finishing homing motor {self.motorID}...")
+            print(f"Finishing homing motor {self.motor_id}...")
         else:
             print("Not connected to controller.")
+
+    def move_to_position(self, position):
+        self._controller.load_settings()
+        time.sleep(1)  # TODO find if necessary
+        self._controller.start_polling(rate=self._polling_rate)
+        position_in_device_unit = self._controller.get_device_unit_from_real_value(self.motor_id, position, "DISTANCE")
+        # TODO Add limit checking and direction change based on position
+        self._controller.move_to_position(self.motor_id, position_in_device_unit)
+        self._wait(1)  # TODO find if necessary
+        self._controller.stop_polling(self.motor_id)
 
 
 # Class representing the motor controller hardware
@@ -114,12 +123,16 @@ class MotorController:
             connection=ConnectionRecord(address=self._address, backend=self._backend))
         self.connectedController = None
         self.channels = []  # List of available channels
-        self.motors = [0]  # List of available motors (motors are indexed from 1, so let 0 index be 0)
+        self.motors = [None]  # List of available motors - motors are indexed from 1, so let 0 index be None, so the
+        # first motor is on the index=1
 
-        # But we know there are 3 motors, so we add a variable for each motor
+        # But we know there are 3 motors in our setup, so we add a variable for each motor
         self.motor_1 = None
         self.motor_2 = None
         self.motor_3 = None
+
+        # Scanning variables:
+        self.progressCount = 0
 
     def connect(self):
         try:
@@ -132,7 +145,7 @@ class MotorController:
             self.channels = list(
                 range(0, self.connectedController.max_channel_count()))  # Scan how many channels are on the device
             print("Identifying motors...")
-            self.motors = [0]  # Erase previously loaded motors
+            self.motors = [None]  # Erase previously loaded motors
             # Create list of available motors
             for i, chanel in enumerate(self.channels):
                 self.motors.append(Motor(self, i+1))  # i starts indexing from 0 but motor ID starts from 1 => i+1
@@ -149,6 +162,324 @@ class MotorController:
 
         except OSError:
             print("No devices found.")
+
+    @staticmethod
+    def find_range(start, stop, step):
+        dx = int((stop - start) / step)
+        return np.linspace(start, stop, endpoint=True, num=dx + 1)
+
+    @staticmethod
+    def find_range_double(step):
+        start1 = 270
+        stop1 = 360
+        start2 = 0
+        stop2 = 90
+        dx1 = int((stop1 - start1) / step)
+        dx2 = int((stop2 - start2) / step)
+        point1 = np.linspace(start1, stop1, endpoint=True, num=dx1 + 1)
+        point2 = np.linspace(start2, stop2, endpoint=True, num=dx2 + 1)
+        point0 = np.concatenate((point1, point2))
+        point = np.delete(point0, np.where(point0 == 360))
+        return point
+
+    def update_progress(self, num):
+        self.progressCount = self.progressCount + num
+
+    @staticmethod
+    def days_hours_minutes_seconds(dt):
+        return (
+            dt.days,  # days
+            dt.seconds // 3600,  # hours
+            (dt.seconds // 60) % 60,  # minutes
+            dt.seconds
+            - ((dt.seconds // 3600) * 3600)
+            - ((dt.seconds % 3600 // 60) * 60)  # seconds
+        )
+
+    def scanning(self, input_data, on_progress, on_progress2):
+        if input_data[10] == 1:
+            print("1D measurement in progress...")
+            # _____________________________________Cycle___________________________________
+            angles = [0, 0, 0]
+
+            name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
+            print("Writing", name)
+
+            f1 = input_data[0]
+            f1 = float(f1)
+            s1 = 1
+
+            f2 = input_data[3]
+            f2 = float(f2)
+            s2 = 1
+
+            s3 = input_data[8]
+            s3 = float(s3)
+
+            maximum = (len(self.find_range(f1, f1, s1))
+                       * len(self.find_range(f2, f2, s2))
+                       * len(self.find_range_double(s3)))
+            print("Max = ", maximum)
+
+            for i in self.find_range(f1, f1, s1):
+                self.motor_1.move_to_position(i)
+
+                angles.pop(0)
+                angles.insert(0, i)
+
+                time.sleep(2)
+
+                for j in self.find_range(f2, f2, s2):
+                    self.motor_2.move_to_position(j)
+
+                    angles.pop(1)
+                    angles.insert(1, j)
+
+                    time.sleep(2)
+
+                    for k in self.find_range_double(s3):
+                        c1 = time.time()
+                        self.motor_3.move_to_position(k)
+
+                        angles.pop(2)
+                        angles.insert(2, k)
+
+                        m1 = angles[0]
+                        m2 = angles[1]
+                        m3 = angles[2]
+                        print("set angles")
+
+                        try:
+                            with nidaqmx.Task() as task:
+                                task.ai_channels.add_ai_voltage_chan(
+                                    "myDAQ1/ai0:1"
+                                )
+                                task.timing.cfg_samp_clk_timing(
+                                    100000,
+                                    source="",
+                                    active_edge=Edge.RISING,
+                                    sample_mode=AcquisitionType.FINITE,
+                                    samps_per_chan=10,
+                                )
+
+                                n = 0
+                                num = input_data[9]
+                                print("num = ", int(num))
+                                print(type(num))
+
+                                column_names = ["a", "b", "c", "d", "e"]
+                                df = pd.DataFrame(columns=column_names)
+
+                                while n < int(num):
+                                    aaa = task.read()
+                                    data = {
+                                        "a": [m1],
+                                        "b": [m2],
+                                        "c": [m3],
+                                        "d": [aaa[0]],
+                                        "e": [aaa[1]],
+                                    }
+                                    dp = pd.DataFrame(data)
+                                    df = pd.concat((df, dp), axis=0)
+                                    n += 1
+                        except:  # TODO Specify exception
+                            pass
+
+                        df2 = df.mean()
+                        print("m1:", df2[0], " m2:", df2[1], " m3:", df2[2])
+                        print(
+                            "prumer Signal1:",
+                            df2[3],
+                            " a prumer Signal2:",
+                            df2[4],
+                        )
+                        pomer = df2[3] / df2[4]
+                        print("Pomer je:", pomer)
+
+                        with open(name, "a") as f:
+                            line = "{};{};{};{};{};{}".format(df2[0], df2[1], df2[2], df2[3], df2[4], pomer)
+                            print(line, file=f)
+
+                        self.update_progress(1)
+                        print("Progres count: ", self.progressCount)
+                        actual_progress = (100 / maximum) * self.progressCount
+                        print("Progress: ", actual_progress, " %")
+                        on_progress.emit(actual_progress)  # vyslani signalu
+
+                        c2 = time.time()
+                        dt = c2 - c1
+                        dn = maximum - self.progressCount
+                        dm = dt * dn
+                        dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
+                        print("dn = ", dn)
+                        print("dm = ", dm)
+                        on_progress2.emit(dm)  # vyslani signalu
+                        delta = timedelta(seconds=dm)
+                        (
+                            days,
+                            hours,
+                            minutes,
+                            seconds,
+                        ) = self.days_hours_minutes_seconds(delta)
+                        print(
+                            "Time to finish: ",
+                            days,
+                            "d",
+                            hours,
+                            "h",
+                            minutes,
+                            "m",
+                            seconds,
+                            "s",
+                        )
+
+        else:
+            print("3D measurement in progress...")
+
+            # _____________________________________Cycle 3D START !!!!!___________________________________
+            angles = [0, 0, 0]
+
+            name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
+            print("Writing", name)
+
+            f1 = input_data[0]
+            f1 = float(f1)
+            t1 = input_data[1]
+            t1 = float(t1)
+            s1 = input_data[2]
+            s1 = float(s1)
+
+            f2 = input_data[3]
+            f2 = float(f2)
+            t2 = input_data[4]
+            t2 = float(t2)
+            s2 = input_data[5]
+            s2 = float(s2)
+
+            f3 = input_data[6]
+            f3 = float(f3)
+            t3 = input_data[7]
+            t3 = float(t3)
+            s3 = input_data[8]
+            s3 = float(s3)
+
+            maximum = (len(self.find_range(f1, t1, s1))
+                       * len(self.find_range(f2, t2, s2))
+                       * len(self.find_range(f3, t3, s3)))
+            print("Max = ", maximum)
+
+            for i in self.find_range(f1, t1, s1):
+                self.motor_1.move_to_position(i)
+
+                angles.pop(0)
+                angles.insert(0, i)
+
+                time.sleep(2)
+
+                for j in self.find_range(f2, t2, s2):
+                    print("Motor 2: ", f2, " ", t2, " ", s2)
+                    self.motor_2.move_to_position(j)
+
+                    angles.pop(1)
+                    angles.insert(1, j)
+
+                    time.sleep(2)
+
+                    for k in self.find_range(f3, t3, s3):
+                        c1 = time.time()
+                        self.motor_3.move_to_position(k)
+
+                        angles.pop(2)
+                        angles.insert(2, k)
+
+                        m1 = angles[0]
+                        m2 = angles[1]
+                        m3 = angles[2]
+                        print("set angles")
+
+                        try:
+                            with nidaqmx.Task() as task:
+                                task.ai_channels.add_ai_voltage_chan(
+                                    "myDAQ1/ai0:1"
+                                )
+                                task.timing.cfg_samp_clk_timing(
+                                    100000,
+                                    source="",
+                                    active_edge=Edge.RISING,
+                                    sample_mode=AcquisitionType.FINITE,
+                                    samps_per_chan=10,
+                                )
+
+                                n = 0
+                                num = input_data[9]
+
+                                column_names = ["a", "b", "c", "d", "e"]
+                                df = pd.DataFrame(columns=column_names)
+
+                                while n < int(num):
+                                    aaa = task.read()
+                                    data = {
+                                        "a": [m1],
+                                        "b": [m2],
+                                        "c": [m3],
+                                        "d": [aaa[0]],
+                                        "e": [aaa[1]],
+                                    }
+                                    dp = pd.DataFrame(data)
+                                    df = pd.concat((df, dp), axis=0)
+                                    n += 1
+
+                        except:  # TODO Specify exception
+                            pass
+                        df2 = df.mean()
+                        print("m1:", df2[0], " m2:", df2[1], " m3:", df2[2])
+                        print(
+                            "prumer Signal1:",
+                            df2[3],
+                            " a prumer Signal2:",
+                            df2[4],
+                        )
+                        pomer = df2[3] / df2[4]
+                        print("Pomer je:", pomer)
+
+                        with open(name, "a") as f:
+                            line = "{};{};{};{};{};{}".format(df2[0], df2[1], df2[2], df2[3], df2[4], pomer)
+                            print(line, file=f)
+
+                        self.update_progress(1)
+                        print("Progres count: ", self.progressCount)
+                        actual_progress = (100 / maximum) * self.progressCount
+                        print("Progress: ", actual_progress, " %")
+                        on_progress.emit(
+                            actual_progress
+                        )  # vyslani signalu
+
+                        c2 = time.time()
+                        dt = c2 - c1
+                        dn = maximum - self.progressCount
+                        dm = dt * dn
+                        dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
+                        print("dn = ", dn)
+                        print("dm = ", dm)
+                        on_progress2.emit(dm)  # vyslani signalu
+                        delta = timedelta(seconds=dm)
+                        (
+                            days,
+                            hours,
+                            minutes,
+                            seconds,
+                        ) = self.days_hours_minutes_seconds(delta)
+                        print(
+                            "Time to finish: ",
+                            days,
+                            "d",
+                            hours,
+                            "h",
+                            minutes,
+                            "m",
+                            seconds,
+                            "s",
+                        )
 
 
 class WorkerMove(QThread):

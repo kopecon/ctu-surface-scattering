@@ -35,82 +35,85 @@ class Window(QMainWindow):
         self.setFixedSize(QSize(600, 600))
 
         # Measurement arguments:
-        self.inputData = []
-        self.oneD = 0
+        self._inputData = []
+        self._oneD = 0
 
         # Thread variables
         self.worker = None
 
         # Labels
-        _labelMotorSetupTitle = self.label("Motors Setup:")
+        _labelMotorSetupTitle = self._label("Motors Setup:")
 
-        _labelM1from = self.label("From")
-        _labelM1to = self.label("To")
-        _labelM1step = self.label("Step")
-        _labelM1 = self.label("Motor 1")
+        _labelM1from = self._label("From")
+        _labelM1to = self._label("To")
+        _labelM1step = self._label("Step")
+        _labelM1 = self._label("Motor 1")
 
-        _labelM2from = self.label("From")
-        _labelM2to = self.label("To")
-        _labelM2step = self.label("Step")
-        _labelM2 = self.label("Motor 2")
+        _labelM2from = self._label("From")
+        _labelM2to = self._label("To")
+        _labelM2step = self._label("Step")
+        _labelM2 = self._label("Motor 2")
 
-        _labelM3from = self.label("From")
-        _labelM3to = self.label("To")
-        _labelM3step = self.label("Step")
-        _labelM3 = self.label("Motor 3")
+        _labelM3from = self._label("From")
+        _labelM3to = self._label("To")
+        _labelM3step = self._label("Step")
+        _labelM3 = self._label("Motor 3")
 
-        _labelMeasurementSetupTitle = self.label("Measurement Setup:")
+        _labelMeasurementSetupTitle = self._label("Measurement Setup:")
 
-        _labelMeasurementNum = self.label("N Measurement points")
-        _labelMeasurementN = self.label("[n]")
+        _labelMeasurementNum = self._label("N Measurement points")
+        _labelMeasurementN = self._label("[n]")
 
-        _labelHomeTitle = self.label("Homing:")
+        _labelHomeTitle = self._label("Homing:")
 
-        _labelTimeToFinishTitle = self.label("Time to Finish:")
-        self._labelTimeToFinishValue = self.label("0d 0h 0m 0s")
+        _labelTimeToFinishTitle = self._label("Time to Finish:")
+        self._labelTimeToFinishValue = self._label("0d 0h 0m 0s")
 
-        _urlLabel = self.label(
+        _urlLabel = self._label(
             f"<a href='https://www.numsolution.cz/'>https://www.numsolution.cz/</a>"
         )
         _urlLabel.setOpenExternalLinks(True)
 
         # Line edits
-        self._M1FROMValue = self.lineEdit("0")
-        self._M1TOValue = self.lineEdit("90")
-        self._M1STEPValue = self.lineEdit("30")
+        self._M1FROMValue = self._line_edit("0")
+        self._M1TOValue = self._line_edit("90")
+        self._M1STEPValue = self._line_edit("30")
 
-        self._M2FROMValue = self.lineEdit("90")
-        self._M2TOValue = self.lineEdit("180")
-        self._M2STEPValue = self.lineEdit("30")
+        self._M2FROMValue = self._line_edit("90")
+        self._M2TOValue = self._line_edit("180")
+        self._M2STEPValue = self._line_edit("30")
 
-        self._M3FROMValue = self.lineEdit("0")
-        self._M3TOValue = self.lineEdit("90")
-        self._M3STEPValue = self.lineEdit("30")
+        self._M3FROMValue = self._line_edit("0")
+        self._M3TOValue = self._line_edit("90")
+        self._M3STEPValue = self._line_edit("30")
 
-        self._MESPOINTSValue = self.lineEdit("500")
+        self._MESPOINTSValue = self._line_edit("500")
 
         # Buttons
-        self._startMeasurement = self.pushButton("Start Measurement")
-        self._Home1 = self.pushButton("Motor 1 Home")
-        self._Home2 = self.pushButton("Motor 2 Home")
-        self._Home3 = self.pushButton("Motor 3 Home")
+        self._startMeasurement = self._push_button("Start Measurement")
+        self._Home1 = self._push_button("Motor 1 Home")
+        self._Home2 = self._push_button("Motor 2 Home")
+        self._Home3 = self._push_button("Motor 3 Home")
+        self._scan = self._push_button("Scan")
 
         self._startMeasurement.clicked.connect(lambda: self.functionMove())
 
-        self._Home1.clicked.connect(lambda: self.motorHoming(1))
-        self._Home2.clicked.connect(lambda: self.motorHoming(2))
-        self._Home3.clicked.connect(lambda: self.motorHoming(3))
+        self._Home1.clicked.connect(lambda: self.start_homing(1))
+        self._Home2.clicked.connect(lambda: self.start_homing(2))
+        self._Home3.clicked.connect(lambda: self.start_homing(3))
+
+        self._scan.clicked.connect(lambda: self.start_scanning())
 
         # Progress bar
-        self._progressBar = self.createProgressBar(0)
+        self._progressBar = self._progress_bar(0)
 
         # Checkbox
         self._oneDMeasurement = QCheckBox("1D Measurement", self)
         self._oneDMeasurement.setChecked(False)
-        self._oneDMeasurement.clicked.connect(self.disableValueEditing)
+        self._oneDMeasurement.clicked.connect(self._disable_value_editing)
 
         # Logo
-        logo = self.createLogo()
+        logo = self._create_logo()
 
         # Place and display created widgets
         self._layout.addWidget(_labelMotorSetupTitle, 0, 0, 1, 1)
@@ -143,6 +146,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._M3STEPValue, 7, 3, 1, 1)
         self._layout.addWidget(self._MESPOINTSValue, 10, 1, 1, 1)
         self._layout.addWidget(self._startMeasurement, 11, 3, 1, 1)
+        self._layout.addWidget(self._scan, 15, 3, 1, 1)
         self._layout.addWidget(self._Home1, 13, 1, 1, 1)
         self._layout.addWidget(self._Home2, 14, 1, 1, 1)
         self._layout.addWidget(self._Home3, 15, 1, 1, 1)
@@ -153,32 +157,33 @@ class Window(QMainWindow):
 
     # --------- Functions to make creating widgets easier ----------------
     @staticmethod
-    def label(text: str) -> QLabel:
+    def _label(text: str) -> QLabel:
         label = QLabel()
         label.setText(text)
         return label
 
     @staticmethod
-    def lineEdit(text: str) -> QLineEdit:
-        lineEdit = QLineEdit()
-        lineEdit.setText(text)
-        return lineEdit
+    def _line_edit(text: str) -> QLineEdit:
+        line_edit = QLineEdit()
+        line_edit.setText(text)
+        return line_edit
 
     @staticmethod
-    def pushButton(text: str) -> QPushButton:
-        pushButton = QPushButton()
-        pushButton.setText(text)
-        return pushButton
+    def _push_button(text: str) -> QPushButton:
+        push_button = QPushButton()
+        push_button.setText(text)
+        return push_button
 
     @staticmethod
-    def createProgressBar(num: int) -> QProgressBar:
-        progressBar = QProgressBar()
-        progressBar.setValue(num)
-        return progressBar
+    def _progress_bar(num: int) -> QProgressBar:
+        progress_bar = QProgressBar()
+        progress_bar.setValue(num)
+        return progress_bar
 
     # -----------------------------------------------------------------------
 
-    def createLogo(self):
+    @staticmethod
+    def _create_logo():
         logo_png = QPixmap("NUMlogo_200x93.png")
         logo_png = logo_png.scaledToWidth(100, Qt.TransformationMode.SmoothTransformation)
         logo = QLabel()
@@ -186,7 +191,7 @@ class Window(QMainWindow):
         logo.setPixmap(logo_png)
         return logo
 
-    def disableValueEditing(self):
+    def _disable_value_editing(self):
         if self._oneDMeasurement.isChecked():
             self._M1TOValue.setEnabled(False)
             self._M1STEPValue.setEnabled(False)
@@ -203,14 +208,15 @@ class Window(QMainWindow):
             self._M3FROMValue.setEnabled(True)
             self._M3TOValue.setEnabled(True)
 
-    def updateLayoutAfterFinishedMove(self):
+    def _update_layout_after_finished_scanning(self):
         self._progressBar.setValue(0)
         self._startMeasurement.setEnabled(True)
         self._Home1.setEnabled(True)
         self._Home2.setEnabled(True)
         self._Home3.setEnabled(True)
 
-    def daysHoursMinutesSeconds(self, dt):
+    @staticmethod
+    def _days_hours_minutes_seconds(dt):
         return (
             dt.days,  # days
             dt.seconds // 3600,  # hours
@@ -221,13 +227,13 @@ class Window(QMainWindow):
             # seconds
         )
 
-    def updateProgressBar(self, n):
+    def _update_progress_bar(self, n):
         self._progressBar.setValue(n)
         print("Progress num:", n)
 
-    def updateProgressBarLabel(self, dm: float):
+    def _update_progress_bar_label(self, dm: float):
         delta = timedelta(seconds=dm)
-        (days, hours, minutes, seconds) = self.daysHoursMinutesSeconds(delta)
+        (days, hours, minutes, seconds) = self._days_hours_minutes_seconds(delta)
         n = (
                 str(days)
                 + "d "
@@ -240,12 +246,12 @@ class Window(QMainWindow):
         )
         self._labelTimeToFinishValue.setText(n)
 
-    def motorHoming(self, motorID):
-        self.worker = HomingThread(motorID)
-        self.worker.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
-        self.worker.on_progress.connect(self.updateProgressBar)  # propojeni signalu
+    def start_homing(self, motor_id):
+        self.worker = HomingThread(motor_id)
+        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
+        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
 
-        print("Activated motor:", motorID)
+        print("Activated motor:", motor_id)
         self._startMeasurement.setEnabled(False)
         self._Home1.setEnabled(False)
         self._Home2.setEnabled(False)
@@ -253,15 +259,15 @@ class Window(QMainWindow):
 
         self.worker.start()
 
-    def functionMove(self):
+    def start_scanning(self):
         if self._oneDMeasurement.isChecked():
-            self.oneD = 1
+            self._oneD = 1
             print("1D measurement ON")
         else:
-            self.oneD = 0
+            self._oneD = 0
             print("1D measurement OFF")
 
-        self.inputData = [
+        self._inputData = [
             self._M1FROMValue.text(),
             self._M1TOValue.text(),
             self._M1STEPValue.text(),
@@ -272,19 +278,54 @@ class Window(QMainWindow):
             self._M3TOValue.text(),
             self._M3STEPValue.text(),
             self._MESPOINTSValue.text(),
-            self.oneD,
+            self._oneD]
+
+        print("Input Data: ", self._inputData)
+        self.worker = ScanningThread(self._inputData)
+        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
+        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
+        self.worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
+
+        self._startMeasurement.setEnabled(False)
+        self._Home1.setEnabled(False)
+        self._Home2.setEnabled(False)
+        self._Home3.setEnabled(False)
+        self._scan.setEnabled(False)
+
+        self.worker.start()
+
+    def functionMove(self):
+        if self._oneDMeasurement.isChecked():
+            self._oneD = 1
+            print("1D measurement ON")
+        else:
+            self._oneD = 0
+            print("1D measurement OFF")
+
+        self._inputData = [
+            self._M1FROMValue.text(),
+            self._M1TOValue.text(),
+            self._M1STEPValue.text(),
+            self._M2FROMValue.text(),
+            self._M2TOValue.text(),
+            self._M2STEPValue.text(),
+            self._M3FROMValue.text(),
+            self._M3TOValue.text(),
+            self._M3STEPValue.text(),
+            self._MESPOINTSValue.text(),
+            self._oneD,
         ]
-        print("Data(functionMove): ", self.inputData)
-        self.myworkermove = WorkerMove(self.inputData)
+        print("Data(functionMove): ", self._inputData)
+        self.myworkermove = WorkerMove(self._inputData)
         self.myworkermove.finished.connect(
-            self.updateLayoutAfterFinishedMove
+            self._update_layout_after_finished_scanning
         )  # propojeni signalu
         self.myworkermove.on_progress.connect(
-            self.updateProgressBar
+            self._update_progress_bar
         )  # propojeni signalu
 
         self.myworkermove.on_progress2.connect(
-            self.updateProgressBarLabel
+            self._update_progress_bar_label
         )  # propojeni signalu
 
         print("Run Move Function")
@@ -302,13 +343,29 @@ class HomingThread(QThread):
     on_progress = Signal(int)
     controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
 
-    def __init__(self, motorID):
+    def __init__(self, motor_id):
         super().__init__()
         self.controller.connect()
-        self._active_motor = self.controller.motors[motorID]
+        self._active_motor = self.controller.motors[motor_id]
 
-    def run(self):
+    def run(self) -> None:
         self._active_motor.home()
+        self.controller.disconnect()
+        print("Controller disconnected.")
+
+
+class ScanningThread(QThread):
+    on_progress = Signal(int)
+    on_progress2 = Signal(float)
+    controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
+
+    def __init__(self, input_data):
+        super().__init__()
+        self.input_data = input_data
+        self.controller.connect()
+
+    def run(self) -> None:
+        self.controller.scanning(self.input_data, self.on_progress, self.on_progress2)
         self.controller.disconnect()
         print("Controller disconnected.")
 
