@@ -292,7 +292,7 @@ class Window(QMainWindow):
         self.myworkermove.start()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     # Create the Qt Application
     app = QApplication([])
     window = Window()
