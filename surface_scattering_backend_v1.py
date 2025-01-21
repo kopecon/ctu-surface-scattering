@@ -87,11 +87,12 @@ class Motor:
             self._load_settings()
             self._start_polling(rate=self._polling_rate)
             controller.home(self.motorID)
-            print("Homing...")
+            print(f"Homing motor {self.motorID}...")
             self._wait(0)
             time.sleep(1)
             self.getPosition()
-            self._start_polling()
+            self._stop_polling()
+            print("Finishing homing...")
         else:
             print("Not connected to controller.")
 
@@ -114,13 +115,11 @@ class MotorController:
             connection=ConnectionRecord(address=self._address, backend=self._backend))
         self.channels = []  # List of available channels
         self.motors = []  # List of available motors
-        # But we know there are 3 motors, so we add a variable for each motor
-        self.motor_1 = self.motors[0]
-        self.motor_2 = self.motors[1]
-        self.motor_3 = self.motors[2]
 
-        for i, chanel in enumerate(self.channels):
-            self.motors.append(Motor(self, i + 1))
+        # But we know there are 3 motors, so we add a variable for each motor
+        self.motor_1 = None
+        self.motor_2 = None
+        self.motor_3 = None
 
     def connect(self):
         _motorController = None
@@ -128,9 +127,21 @@ class MotorController:
             _motorController = self._record.connect()
             print("Record set up successfully.")
             _motorController.build_device_list()
+
             print("Device list built successfully.")
             self.channels = list(
                 range(1, _motorController.max_channel_count()))  # Scan how many channels are on the device
+
+            print("Identifying motors...")
+            # Create list of available motors
+            for i, chanel in enumerate(self.channels):
+                self.motors.append(Motor(self, i + 1))
+
+            # Assign variable for each motor separately
+            self.motor_1 = self.motors[0]
+            self.motor_2 = self.motors[1]
+            self.motor_3 = self.motors[2]
+
         except OSError:
             print("No devices found.")
         return _motorController
