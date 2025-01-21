@@ -33,32 +33,50 @@ class Motor:
     def __init__(self, parent, motorID):
         self.motorID = motorID
         self._parent = parent
+        self._position_device_unit = None
+        self._position_real_unit = None
 
     # Wrappers for controlling the motors
-    def load_settings(self, motorID):
+    def load_settings(self):
         if self._parent is not None:
             controller = self._parent.connect()
-            controller.load_settings(motorID)
+            controller.load_settings(self.motorID)
             print("Motor setting loaded.")
         else:
             print("Not connected to controller.")
 
-    def start_polling(self, motorID):
+    def start_polling(self):
         if self._parent is not None:
             controller = self._parent.connect()
-            controller.start_polling(motorID)
+            controller.start_polling(self.motorID)
             print("polling started...")
         else:
             print("Not connected to controller.")
 
-    def home(self, motorID):
+    def stop_polling(self):
         if self._parent is not None:
             controller = self._parent.connect()
-            controller.home(motorID)
+            controller.stop_polling(self.motorID)
+            print("polling stopped.")
+        else:
+            print("Not connected to controller.")
+
+    def home(self):
+        if self._parent is not None:
+            controller = self._parent.connect()
+            controller.home(self.motorID)
             print("Homing...")
             #TODO add wait here
         else:
             print("Not connected to controller.")
+
+    def getPosition(self):
+        controller = self._parent.connect()
+        self._position_device_unit = controller.get_position(self.motorID)
+        self._position_real_unit = controller.get_real_value_from_device_unit(
+            self.motorID, self._position_device_unit, "DISTANCE")
+        print(f"At position: {self._position_device_unit} [device units]")
+        print(f"At position: {self._position_real_unit} [real units]")
 
 
 # Class representing the motor controller hardware
