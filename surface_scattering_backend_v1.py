@@ -30,12 +30,41 @@ print("library import done.")
 
 # Class representing the motor hardware
 class Motor:
-    pass
+    def __init__(self, parent, motorID):
+        self.motorID = motorID
+        self._parent = parent
+
+    # Wrappers for controlling the motors
+    def load_settings(self, motorID):
+        if self._parent is not None:
+            controller = self._parent.connect()
+            controller.load_settings(motorID)
+            print("Motor setting loaded.")
+        else:
+            print("Not connected to controller.")
+
+    def start_polling(self, motorID):
+        if self._parent is not None:
+            controller = self._parent.connect()
+            controller.start_polling(motorID)
+            print("polling started...")
+        else:
+            print("Not connected to controller.")
+
+    def home(self, motorID):
+        if self._parent is not None:
+            controller = self._parent.connect()
+            controller.home(motorID)
+            print("Homing...")
+            #TODO add wait here
+        else:
+            print("Not connected to controller.")
 
 
 # Class representing the motor controller hardware
 class MotorController:
     def __init__(self, manufacturer: str, model: str, serial: str, address: str, backend: Backend):
+        # Model parameters
         self._manufacturer = manufacturer
         self._model = model
         self._serial = serial
@@ -45,6 +74,24 @@ class MotorController:
             manufacturer=self._manufacturer, model=self._model,  # update for your device
             serial=self._serial,  # update for your device
             connection=ConnectionRecord(address=self._address, backend=self._backend))
+        self._channels = []  # List of available channels
+        self._motors = []  # List of available motors
+
+        for i, chanel in enumerate(self._channels):
+            self._motors.append(Motor(self, i+1))
+
+    def connect(self):
+        _motorController = None
+        try:
+            _motorController = self._record.connect()
+            print("Record set up successfully.")
+            _motorController.build_device_list()
+            print("Device list built successfully.")
+            self._channels = list(
+                range(1, _motorController.max_channel_count()))  # Scan how many channels are on the device
+        except OSError:
+            print("No devices found.")
+        return _motorController
 
 
 class WorkerHome(QThread):
