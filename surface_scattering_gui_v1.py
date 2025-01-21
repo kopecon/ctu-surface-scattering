@@ -309,6 +309,8 @@ class HomingThread(QThread):
 
     def run(self):
         self._active_motor.home()
+        self.controller.disconnect()
+        print("Controller disconnected.")
 
 
 if __name__ == '__main__':
