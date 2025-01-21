@@ -309,7 +309,6 @@ class HomingThread(QThread):
 
     def run(self):
         self._active_motor.home()
-        print("Homing done.")
 
 
 if __name__ == '__main__':

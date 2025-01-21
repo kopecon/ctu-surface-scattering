@@ -79,6 +79,12 @@ class Motor:
         if self._parent is not None:
             self._load_settings()
             self._start_polling(rate=self._polling_rate)
+
+            print("Initial position:")
+            self.getPosition()
+            print("Homing parameters:")
+            print(self._controller.is_calibration_active(self.motorID))
+
             self._controller.home(self.motorID)
             print(f"Homing motor {self.motorID}...")
             self._wait(0)
@@ -151,9 +157,9 @@ class WorkerMove(QThread):
     on_progress = Signal(int)
     on_progress2 = Signal(float)
 
-    def __init__(self, imputdata):
+    def __init__(self, inputData):
         super().__init__()
-        self.imputdata = imputdata
+        self.inputData = inputData
         self.progressCount = 0
 
     def wait(self, value, channel):
@@ -208,7 +214,7 @@ class WorkerMove(QThread):
 
     def run(self):
         # print imputdata from GUI
-        print("Data(WorkerMove.run): ", self.imputdata)
+        print("Data(WorkerMove.run): ", self.inputData)
 
         # ensure that the Kinesis folder is available on PATH
         os.environ["PATH"] += os.pathsep + "C:/Program Files/Thorlabs/Kinesis"
@@ -241,7 +247,7 @@ class WorkerMove(QThread):
         # set the channel number of the Benchtop Stepper Motor to communicate with
         channel = [1, 2, 3]
 
-        if self.imputdata[10] == 1:
+        if self.inputData[10] == 1:
             print("1D measurement in progress...")
             # _____________________________________Cycle___________________________________
             angles = [0, 0, 0]
@@ -249,15 +255,15 @@ class WorkerMove(QThread):
             name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
             print("Writing", name)
 
-            f1 = self.imputdata[0]
+            f1 = self.inputData[0]
             f1 = float(f1)
             s1 = 1
 
-            f2 = self.imputdata[3]
+            f2 = self.inputData[3]
             f2 = float(f2)
             s2 = 1
 
-            s3 = self.imputdata[8]
+            s3 = self.inputData[8]
             s3 = float(s3)
 
             self.max = (
@@ -335,7 +341,7 @@ class WorkerMove(QThread):
                                 )
 
                                 i = 0
-                                num = self.imputdata[9]
+                                num = self.inputData[9]
                                 print("num = ", int(num))
                                 print(type(num))
 
@@ -421,25 +427,25 @@ class WorkerMove(QThread):
             name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
             print("Writing", name)
 
-            f1 = self.imputdata[0]
+            f1 = self.inputData[0]
             f1 = float(f1)
-            t1 = self.imputdata[1]
+            t1 = self.inputData[1]
             t1 = float(t1)
-            s1 = self.imputdata[2]
+            s1 = self.inputData[2]
             s1 = float(s1)
 
-            f2 = self.imputdata[3]
+            f2 = self.inputData[3]
             f2 = float(f2)
-            t2 = self.imputdata[4]
+            t2 = self.inputData[4]
             t2 = float(t2)
-            s2 = self.imputdata[5]
+            s2 = self.inputData[5]
             s2 = float(s2)
 
-            f3 = self.imputdata[6]
+            f3 = self.inputData[6]
             f3 = float(f3)
-            t3 = self.imputdata[7]
+            t3 = self.inputData[7]
             t3 = float(t3)
-            s3 = self.imputdata[8]
+            s3 = self.inputData[8]
             s3 = float(s3)
 
             self.max = (
@@ -522,7 +528,7 @@ class WorkerMove(QThread):
                                 )
 
                                 i = 0
-                                num = self.imputdata[9]
+                                num = self.inputData[9]
 
                                 column_names = ["a", "b", "c", "d", "e"]
                                 df = pd.DataFrame(columns=column_names)
