@@ -17,7 +17,7 @@ from datetime import timedelta
 
 import surface_scattering_backend_v1
 # Custom packages from this project
-from surface_scattering_backend_v1 import WorkerHome, WorkerMove
+from surface_scattering_backend_v1 import WorkerMove
 
 
 print("Library import done.")
@@ -37,6 +37,9 @@ class Window(QMainWindow):
         # Measurement arguments:
         self.inputData = []
         self.oneD = 0
+
+        # Thread variables
+        self.worker = None
 
         # Labels
         _labelMotorSetupTitle = self.label("Motors Setup:")
@@ -91,14 +94,12 @@ class Window(QMainWindow):
         self._Home1 = self.pushButton("Motor 1 Home")
         self._Home2 = self.pushButton("Motor 2 Home")
         self._Home3 = self.pushButton("Motor 3 Home")
-        self._Home1_new = self.pushButton("Motor 1 Home new")
 
         self._startMeasurement.clicked.connect(lambda: self.functionMove())
 
-        self._Home1.clicked.connect(lambda: self.functionHome(1, self._M1FROMValue.text()))
-        self._Home2.clicked.connect(lambda: self.functionHome(2, self._M2FROMValue.text()))
-        self._Home3.clicked.connect(lambda: self.functionHome(3, self._M3FROMValue.text()))
-        self._Home1_new.clicked.connect(lambda: self.startHomingSelectedMotor(1))
+        self._Home1.clicked.connect(lambda: self.motorHoming(1))
+        self._Home2.clicked.connect(lambda: self.motorHoming(2))
+        self._Home3.clicked.connect(lambda: self.motorHoming(3))
 
         # Progress bar
         self._progressBar = self.createProgressBar(0)
@@ -145,7 +146,6 @@ class Window(QMainWindow):
         self._layout.addWidget(self._Home1, 13, 1, 1, 1)
         self._layout.addWidget(self._Home2, 14, 1, 1, 1)
         self._layout.addWidget(self._Home3, 15, 1, 1, 1)
-        self._layout.addWidget(self._Home1_new, 16, 1, 1, 1)
         self._layout.addWidget(self._progressBar, 13, 3, 1, 2)
         self._layout.addWidget(_urlLabel, 17, 4, 1, 1)
         self._layout.addWidget(logo, 0, 4, 1, 2)
@@ -240,32 +240,18 @@ class Window(QMainWindow):
         )
         self._labelTimeToFinishValue.setText(n)
 
-    def startHomingSelectedMotor(self, motorID):
-        self.myworkerhome = HomingThread(motorID)
-        self.myworkerhome.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
-        self.myworkerhome.on_progress.connect(self.updateProgressBar)  # propojeni signalu
+    def motorHoming(self, motorID):
+        self.worker = HomingThread(motorID)
+        self.worker.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
+        self.worker.on_progress.connect(self.updateProgressBar)  # propojeni signalu
 
-        print("Clicked motor:", motorID)
+        print("Activated motor:", motorID)
         self._startMeasurement.setEnabled(False)
         self._Home1.setEnabled(False)
         self._Home2.setEnabled(False)
         self._Home3.setEnabled(False)
 
-        self.myworkerhome.start()
-
-    def functionHome(self, motorNum, MXFromValue):
-        self.myworkerhome = WorkerHome(motorNum)
-        self.myworkerhome.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
-        self.myworkerhome.on_progress.connect(self.updateProgressBar)  # propojeni signalu
-
-        print("Clicked motor:", motorNum)
-        print("self.MXFromValue:", MXFromValue)
-        self._startMeasurement.setEnabled(False)
-        self._Home1.setEnabled(False)
-        self._Home2.setEnabled(False)
-        self._Home3.setEnabled(False)
-
-        self.myworkerhome.start()
+        self.worker.start()
 
     def functionMove(self):
         if self._oneDMeasurement.isChecked():

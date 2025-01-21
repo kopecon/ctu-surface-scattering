@@ -108,7 +108,7 @@ class MotorController:
             connection=ConnectionRecord(address=self._address, backend=self._backend))
         self.connectedController = None
         self.channels = []  # List of available channels
-        self.motors = []  # List of available motors
+        self.motors = [0]  # List of available motors (motors are indexed from 1, so let 0 index be 0)
 
         # But we know there are 3 motors, so we add a variable for each motor
         self.motor_1 = None
@@ -125,12 +125,12 @@ class MotorController:
 
             self.channels = list(
                 range(0, self.connectedController.max_channel_count()))  # Scan how many channels are on the device
-            print(self.channels)
             print("Identifying motors...")
+            self.motors = [0]  # Erase previously loaded motors
             # Create list of available motors
             for i, chanel in enumerate(self.channels):
-                self.motors.append(Motor(self, i))
-                print(f"    Motor {i} identified.")
+                self.motors.append(Motor(self, i+1))  # i starts indexing from 0 but motor ID starts from 1 => i+1
+                print(f"    Motor {i+1} identified.")
 
             # TODO fix motor assignment when no channels found
             """
