@@ -85,7 +85,9 @@ class Motor:
             time.sleep(1)
             self.getPosition()
             self._stop_polling()
-            print("Finishing homing...")
+            print(f"Finishing homing motor {self.motorID}...")
+            self._controller.disconnect()
+            print("Controller disconnected.")
         else:
             print("Not connected to controller.")
 
