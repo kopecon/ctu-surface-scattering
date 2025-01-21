@@ -30,43 +30,45 @@ print("library import done.")
 
 # Class representing the motor hardware
 class Motor:
-    def __init__(self, parent, motorID):
+    def __init__(self, parent, motorID, polling_rate=200):
         self.motorID = motorID
         self._parent = parent
         self._position_device_unit = None
         self._position_real_unit = None
+        self._polling_rate = 200
+
+    def _wait(self, value: int):
+        controller = self._parent.connect()
+        controller.clear_message_queue(self.motorID)
+        message_type, message_id, _ = controller.wait_for_message(self.motorID)
+        while message_type != 2 or message_id != value:
+            position = self.getPosition()
+            print(f"At position {position[0]} [device units] {position[1]} [real-world units]")
+            message_type, message_id, _ = controller.wait_for_message(self.motorID)
 
     # Wrappers for controlling the motors
-    def load_settings(self):
+    def _load_settings(self):
         if self._parent is not None:
             controller = self._parent.connect()
             controller.load_settings(self.motorID)
             print("Motor setting loaded.")
+            time.sleep(2)  # TODO Check if delay is necessary and how long
         else:
             print("Not connected to controller.")
 
-    def start_polling(self):
+    def _start_polling(self, rate=200):
         if self._parent is not None:
             controller = self._parent.connect()
-            controller.start_polling(self.motorID)
+            controller.start_polling(self.motorID, rate)
             print("polling started...")
         else:
             print("Not connected to controller.")
 
-    def stop_polling(self):
+    def _stop_polling(self):
         if self._parent is not None:
             controller = self._parent.connect()
             controller.stop_polling(self.motorID)
             print("polling stopped.")
-        else:
-            print("Not connected to controller.")
-
-    def home(self):
-        if self._parent is not None:
-            controller = self._parent.connect()
-            controller.home(self.motorID)
-            print("Homing...")
-            #TODO add wait here
         else:
             print("Not connected to controller.")
 
@@ -77,11 +79,29 @@ class Motor:
             self.motorID, self._position_device_unit, "DISTANCE")
         print(f"At position: {self._position_device_unit} [device units]")
         print(f"At position: {self._position_real_unit} [real units]")
+        return self._position_device_unit, self._position_real_unit
+
+    def home(self):
+        if self._parent is not None:
+            controller = self._parent.connect()
+            self._load_settings()
+            self._start_polling(rate=self._polling_rate)
+            controller.home(self.motorID)
+            print("Homing...")
+            self._wait(0)
+            time.sleep(1)
+            self.getPosition()
+            self._start_polling()
+        else:
+            print("Not connected to controller.")
 
 
 # Class representing the motor controller hardware
 class MotorController:
     def __init__(self, manufacturer: str, model: str, serial: str, address: str, backend: Backend):
+        # ensure that the Kinesis folder is available on PATH
+        os.environ["PATH"] += os.pathsep + "C:/Program Files/Thorlabs/Kinesis"
+
         # Model parameters
         self._manufacturer = manufacturer
         self._model = model
@@ -94,6 +114,10 @@ class MotorController:
             connection=ConnectionRecord(address=self._address, backend=self._backend))
         self._channels = []  # List of available channels
         self._motors = []  # List of available motors
+        # But we know there are 3 motors, so we add a variable for each motor
+        self.motor_1 = self._motors[0]
+        self.motor_2 = self._motors[1]
+        self.motor_3 = self._motors[2]
 
         for i, chanel in enumerate(self._channels):
             self._motors.append(Motor(self, i+1))
