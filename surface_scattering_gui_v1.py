@@ -365,7 +365,12 @@ class ScanningThread(QThread):
         self.controller.connect()
 
     def run(self) -> None:
-        self.controller.scanning(self.input_data, self.on_progress, self.on_progress2)
+        if self.input_data[10] == 1:
+            print("1D scanning.")
+            self.controller.scanning_1d(self.input_data, self.on_progress, self.on_progress2)
+        else:
+            print("3D scanning.")
+            self.controller.scanning_3d(self.input_data, self.on_progress, self.on_progress2)
         self.controller.disconnect()
         print("Controller disconnected.")
 

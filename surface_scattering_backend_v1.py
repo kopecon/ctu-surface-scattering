@@ -134,6 +134,7 @@ class MotorController:
         # Scanning variables:
         self.progressCount = 0
 
+    # This function is crashing the code if no device is plugged in via USB
     def connect(self):
         try:
             MotionControl.build_device_list()
@@ -196,290 +197,289 @@ class MotorController:
             - ((dt.seconds % 3600 // 60) * 60)  # seconds
         )
 
-    def scanning(self, input_data, on_progress, on_progress2):
-        if input_data[10] == 1:
-            print("1D measurement in progress...")
-            # _____________________________________Cycle___________________________________
-            angles = [0, 0, 0]
+    def scanning_1d(self, input_data, on_progress, on_progress2):
+        print("1D measurement in progress...")
+        # _____________________________________Cycle___________________________________
+        angles = [0, 0, 0]
 
-            name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
-            print("Writing", name)
+        name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
+        print("Writing", name)
 
-            f1 = input_data[0]
-            f1 = float(f1)
-            s1 = 1
+        f1 = input_data[0]
+        f1 = float(f1)
+        s1 = 1
 
-            f2 = input_data[3]
-            f2 = float(f2)
-            s2 = 1
+        f2 = input_data[3]
+        f2 = float(f2)
+        s2 = 1
 
-            s3 = input_data[8]
-            s3 = float(s3)
+        s3 = input_data[8]
+        s3 = float(s3)
 
-            maximum = (len(self.find_range(f1, f1, s1))
-                       * len(self.find_range(f2, f2, s2))
-                       * len(self.find_range_double(s3)))
-            print("Max = ", maximum)
+        maximum = (len(self.find_range(f1, f1, s1))
+                   * len(self.find_range(f2, f2, s2))
+                   * len(self.find_range_double(s3)))
+        print("Max = ", maximum)
 
-            for i in self.find_range(f1, f1, s1):
-                self.motor_1.move_to_position(i)
+        for i in self.find_range(f1, f1, s1):
+            self.motor_1.move_to_position(i)
 
-                angles.pop(0)
-                angles.insert(0, i)
+            angles.pop(0)
+            angles.insert(0, i)
 
-                time.sleep(2)
+            time.sleep(2)
 
-                for j in self.find_range(f2, f2, s2):
-                    self.motor_2.move_to_position(j)
+            for j in self.find_range(f2, f2, s2):
+                self.motor_2.move_to_position(j)
 
-                    angles.pop(1)
-                    angles.insert(1, j)
-
-                    time.sleep(2)
-
-                    for k in self.find_range_double(s3):
-                        c1 = time.time()
-                        self.motor_3.move_to_position(k)
-
-                        angles.pop(2)
-                        angles.insert(2, k)
-
-                        m1 = angles[0]
-                        m2 = angles[1]
-                        m3 = angles[2]
-                        print("set angles")
-
-                        try:
-                            with nidaqmx.Task() as task:
-                                task.ai_channels.add_ai_voltage_chan(
-                                    "myDAQ1/ai0:1"
-                                )
-                                task.timing.cfg_samp_clk_timing(
-                                    100000,
-                                    source="",
-                                    active_edge=Edge.RISING,
-                                    sample_mode=AcquisitionType.FINITE,
-                                    samps_per_chan=10,
-                                )
-
-                                n = 0
-                                num = input_data[9]
-                                print("num = ", int(num))
-                                print(type(num))
-
-                                column_names = ["a", "b", "c", "d", "e"]
-                                df = pd.DataFrame(columns=column_names)
-
-                                while n < int(num):
-                                    aaa = task.read()
-                                    data = {
-                                        "a": [m1],
-                                        "b": [m2],
-                                        "c": [m3],
-                                        "d": [aaa[0]],
-                                        "e": [aaa[1]],
-                                    }
-                                    dp = pd.DataFrame(data)
-                                    df = pd.concat((df, dp), axis=0)
-                                    n += 1
-                        except:  # TODO Specify exception
-                            pass
-
-                        df2 = df.mean()
-                        print("m1:", df2[0], " m2:", df2[1], " m3:", df2[2])
-                        print(
-                            "prumer Signal1:",
-                            df2[3],
-                            " a prumer Signal2:",
-                            df2[4],
-                        )
-                        pomer = df2[3] / df2[4]
-                        print("Pomer je:", pomer)
-
-                        with open(name, "a") as f:
-                            line = "{};{};{};{};{};{}".format(df2[0], df2[1], df2[2], df2[3], df2[4], pomer)
-                            print(line, file=f)
-
-                        self.update_progress(1)
-                        print("Progres count: ", self.progressCount)
-                        actual_progress = (100 / maximum) * self.progressCount
-                        print("Progress: ", actual_progress, " %")
-                        on_progress.emit(actual_progress)  # vyslani signalu
-
-                        c2 = time.time()
-                        dt = c2 - c1
-                        dn = maximum - self.progressCount
-                        dm = dt * dn
-                        dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
-                        print("dn = ", dn)
-                        print("dm = ", dm)
-                        on_progress2.emit(dm)  # vyslani signalu
-                        delta = timedelta(seconds=dm)
-                        (
-                            days,
-                            hours,
-                            minutes,
-                            seconds,
-                        ) = self.days_hours_minutes_seconds(delta)
-                        print(
-                            "Time to finish: ",
-                            days,
-                            "d",
-                            hours,
-                            "h",
-                            minutes,
-                            "m",
-                            seconds,
-                            "s",
-                        )
-
-        else:
-            print("3D measurement in progress...")
-
-            # _____________________________________Cycle 3D START !!!!!___________________________________
-            angles = [0, 0, 0]
-
-            name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
-            print("Writing", name)
-
-            f1 = input_data[0]
-            f1 = float(f1)
-            t1 = input_data[1]
-            t1 = float(t1)
-            s1 = input_data[2]
-            s1 = float(s1)
-
-            f2 = input_data[3]
-            f2 = float(f2)
-            t2 = input_data[4]
-            t2 = float(t2)
-            s2 = input_data[5]
-            s2 = float(s2)
-
-            f3 = input_data[6]
-            f3 = float(f3)
-            t3 = input_data[7]
-            t3 = float(t3)
-            s3 = input_data[8]
-            s3 = float(s3)
-
-            maximum = (len(self.find_range(f1, t1, s1))
-                       * len(self.find_range(f2, t2, s2))
-                       * len(self.find_range(f3, t3, s3)))
-            print("Max = ", maximum)
-
-            for i in self.find_range(f1, t1, s1):
-                self.motor_1.move_to_position(i)
-
-                angles.pop(0)
-                angles.insert(0, i)
+                angles.pop(1)
+                angles.insert(1, j)
 
                 time.sleep(2)
 
-                for j in self.find_range(f2, t2, s2):
-                    print("Motor 2: ", f2, " ", t2, " ", s2)
-                    self.motor_2.move_to_position(j)
+                for k in self.find_range_double(s3):
+                    c1 = time.time()
+                    self.motor_3.move_to_position(k)
 
-                    angles.pop(1)
-                    angles.insert(1, j)
+                    angles.pop(2)
+                    angles.insert(2, k)
 
-                    time.sleep(2)
+                    m1 = angles[0]
+                    m2 = angles[1]
+                    m3 = angles[2]
+                    print("set angles")
 
-                    for k in self.find_range(f3, t3, s3):
-                        c1 = time.time()
-                        self.motor_3.move_to_position(k)
+                    try:
+                        with nidaqmx.Task() as task:
+                            task.ai_channels.add_ai_voltage_chan(
+                                "myDAQ1/ai0:1"
+                            )
+                            task.timing.cfg_samp_clk_timing(
+                                100000,
+                                source="",
+                                active_edge=Edge.RISING,
+                                sample_mode=AcquisitionType.FINITE,
+                                samps_per_chan=10,
+                            )
 
-                        angles.pop(2)
-                        angles.insert(2, k)
+                            n = 0
+                            num = input_data[9]
+                            print("num = ", int(num))
+                            print(type(num))
 
-                        m1 = angles[0]
-                        m2 = angles[1]
-                        m3 = angles[2]
-                        print("set angles")
+                            column_names = ["a", "b", "c", "d", "e"]
+                            df = pd.DataFrame(columns=column_names)
 
-                        try:
-                            with nidaqmx.Task() as task:
-                                task.ai_channels.add_ai_voltage_chan(
-                                    "myDAQ1/ai0:1"
-                                )
-                                task.timing.cfg_samp_clk_timing(
-                                    100000,
-                                    source="",
-                                    active_edge=Edge.RISING,
-                                    sample_mode=AcquisitionType.FINITE,
-                                    samps_per_chan=10,
-                                )
+                            while n < int(num):
+                                aaa = task.read()
+                                data = {
+                                    "a": [m1],
+                                    "b": [m2],
+                                    "c": [m3],
+                                    "d": [aaa[0]],
+                                    "e": [aaa[1]],
+                                }
+                                dp = pd.DataFrame(data)
+                                df = pd.concat((df, dp), axis=0)
+                                n += 1
+                    except:  # TODO Specify exception
+                        pass
 
-                                n = 0
-                                num = input_data[9]
+                    df2 = df.mean()
+                    print("m1:", df2[0], " m2:", df2[1], " m3:", df2[2])
+                    print(
+                        "prumer Signal1:",
+                        df2[3],
+                        " a prumer Signal2:",
+                        df2[4],
+                    )
+                    pomer = df2[3] / df2[4]
+                    print("Pomer je:", pomer)
 
-                                column_names = ["a", "b", "c", "d", "e"]
-                                df = pd.DataFrame(columns=column_names)
+                    with open(name, "a") as f:
+                        line = "{};{};{};{};{};{}".format(df2[0], df2[1], df2[2], df2[3], df2[4], pomer)
+                        print(line, file=f)
 
-                                while n < int(num):
-                                    aaa = task.read()
-                                    data = {
-                                        "a": [m1],
-                                        "b": [m2],
-                                        "c": [m3],
-                                        "d": [aaa[0]],
-                                        "e": [aaa[1]],
-                                    }
-                                    dp = pd.DataFrame(data)
-                                    df = pd.concat((df, dp), axis=0)
-                                    n += 1
+                    self.update_progress(1)
+                    print("Progres count: ", self.progressCount)
+                    actual_progress = (100 / maximum) * self.progressCount
+                    print("Progress: ", actual_progress, " %")
+                    on_progress.emit(actual_progress)  # vyslani signalu
 
-                        except:  # TODO Specify exception
-                            pass
-                        df2 = df.mean()
-                        print("m1:", df2[0], " m2:", df2[1], " m3:", df2[2])
-                        print(
-                            "prumer Signal1:",
-                            df2[3],
-                            " a prumer Signal2:",
-                            df2[4],
-                        )
-                        pomer = df2[3] / df2[4]
-                        print("Pomer je:", pomer)
+                    c2 = time.time()
+                    dt = c2 - c1
+                    dn = maximum - self.progressCount
+                    dm = dt * dn
+                    dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
+                    print("dn = ", dn)
+                    print("dm = ", dm)
+                    on_progress2.emit(dm)  # vyslani signalu
+                    delta = timedelta(seconds=dm)
+                    (
+                        days,
+                        hours,
+                        minutes,
+                        seconds,
+                    ) = self.days_hours_minutes_seconds(delta)
+                    print(
+                        "Time to finish: ",
+                        days,
+                        "d",
+                        hours,
+                        "h",
+                        minutes,
+                        "m",
+                        seconds,
+                        "s",
+                    )
 
-                        with open(name, "a") as f:
-                            line = "{};{};{};{};{};{}".format(df2[0], df2[1], df2[2], df2[3], df2[4], pomer)
-                            print(line, file=f)
+    def scanning_3d(self, input_data, on_progress, on_progress2):
+        print("3D measurement in progress...")
 
-                        self.update_progress(1)
-                        print("Progres count: ", self.progressCount)
-                        actual_progress = (100 / maximum) * self.progressCount
-                        print("Progress: ", actual_progress, " %")
-                        on_progress.emit(
-                            actual_progress
-                        )  # vyslani signalu
+        # _____________________________________Cycle 3D START !!!!!___________________________________
+        angles = [0, 0, 0]
 
-                        c2 = time.time()
-                        dt = c2 - c1
-                        dn = maximum - self.progressCount
-                        dm = dt * dn
-                        dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
-                        print("dn = ", dn)
-                        print("dm = ", dm)
-                        on_progress2.emit(dm)  # vyslani signalu
-                        delta = timedelta(seconds=dm)
-                        (
-                            days,
-                            hours,
-                            minutes,
-                            seconds,
-                        ) = self.days_hours_minutes_seconds(delta)
-                        print(
-                            "Time to finish: ",
-                            days,
-                            "d",
-                            hours,
-                            "h",
-                            minutes,
-                            "m",
-                            seconds,
-                            "s",
-                        )
+        name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
+        print("Writing", name)
+
+        f1 = input_data[0]
+        f1 = float(f1)
+        t1 = input_data[1]
+        t1 = float(t1)
+        s1 = input_data[2]
+        s1 = float(s1)
+
+        f2 = input_data[3]
+        f2 = float(f2)
+        t2 = input_data[4]
+        t2 = float(t2)
+        s2 = input_data[5]
+        s2 = float(s2)
+
+        f3 = input_data[6]
+        f3 = float(f3)
+        t3 = input_data[7]
+        t3 = float(t3)
+        s3 = input_data[8]
+        s3 = float(s3)
+
+        maximum = (len(self.find_range(f1, t1, s1))
+                   * len(self.find_range(f2, t2, s2))
+                   * len(self.find_range(f3, t3, s3)))
+        print("Max = ", maximum)
+
+        for i in self.find_range(f1, t1, s1):
+            self.motor_1.move_to_position(i)
+
+            angles.pop(0)
+            angles.insert(0, i)
+
+            time.sleep(2)
+
+            for j in self.find_range(f2, t2, s2):
+                print("Motor 2: ", f2, " ", t2, " ", s2)
+                self.motor_2.move_to_position(j)
+
+                angles.pop(1)
+                angles.insert(1, j)
+
+                time.sleep(2)
+
+                for k in self.find_range(f3, t3, s3):
+                    c1 = time.time()
+                    self.motor_3.move_to_position(k)
+
+                    angles.pop(2)
+                    angles.insert(2, k)
+
+                    m1 = angles[0]
+                    m2 = angles[1]
+                    m3 = angles[2]
+                    print("set angles")
+
+                    try:
+                        with nidaqmx.Task() as task:
+                            task.ai_channels.add_ai_voltage_chan(
+                                "myDAQ1/ai0:1"
+                            )
+                            task.timing.cfg_samp_clk_timing(
+                                100000,
+                                source="",
+                                active_edge=Edge.RISING,
+                                sample_mode=AcquisitionType.FINITE,
+                                samps_per_chan=10,
+                            )
+
+                            n = 0
+                            num = input_data[9]
+
+                            column_names = ["a", "b", "c", "d", "e"]
+                            df = pd.DataFrame(columns=column_names)
+
+                            while n < int(num):
+                                aaa = task.read()
+                                data = {
+                                    "a": [m1],
+                                    "b": [m2],
+                                    "c": [m3],
+                                    "d": [aaa[0]],
+                                    "e": [aaa[1]],
+                                }
+                                dp = pd.DataFrame(data)
+                                df = pd.concat((df, dp), axis=0)
+                                n += 1
+
+                    except:  # TODO Specify exception
+                        pass
+                    df2 = df.mean()
+                    print("m1:", df2[0], " m2:", df2[1], " m3:", df2[2])
+                    print(
+                        "prumer Signal1:",
+                        df2[3],
+                        " a prumer Signal2:",
+                        df2[4],
+                    )
+                    pomer = df2[3] / df2[4]
+                    print("Pomer je:", pomer)
+
+                    with open(name, "a") as f:
+                        line = "{};{};{};{};{};{}".format(df2[0], df2[1], df2[2], df2[3], df2[4], pomer)
+                        print(line, file=f)
+
+                    self.update_progress(1)
+                    print("Progres count: ", self.progressCount)
+                    actual_progress = (100 / maximum) * self.progressCount
+                    print("Progress: ", actual_progress, " %")
+                    on_progress.emit(
+                        actual_progress
+                    )  # vyslani signalu
+
+                    c2 = time.time()
+                    dt = c2 - c1
+                    dn = maximum - self.progressCount
+                    dm = dt * dn
+                    dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
+                    print("dn = ", dn)
+                    print("dm = ", dm)
+                    on_progress2.emit(dm)  # vyslani signalu
+                    delta = timedelta(seconds=dm)
+                    (
+                        days,
+                        hours,
+                        minutes,
+                        seconds,
+                    ) = self.days_hours_minutes_seconds(delta)
+                    print(
+                        "Time to finish: ",
+                        days,
+                        "d",
+                        hours,
+                        "h",
+                        minutes,
+                        "m",
+                        seconds,
+                        "s",
+                    )
 
 
 class WorkerMove(QThread):
