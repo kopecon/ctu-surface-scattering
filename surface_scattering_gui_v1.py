@@ -1,5 +1,5 @@
 from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -15,8 +15,12 @@ from PySide6.QtWidgets import (
 import sys
 from datetime import timedelta
 
+import surface_scattering_backend_v1
 # Custom packages from this project
 from surface_scattering_backend_v1 import WorkerHome, WorkerMove
+
+
+print("Library import done.")
 
 
 class Window(QMainWindow):
@@ -87,12 +91,14 @@ class Window(QMainWindow):
         self._Home1 = self.pushButton("Motor 1 Home")
         self._Home2 = self.pushButton("Motor 2 Home")
         self._Home3 = self.pushButton("Motor 3 Home")
+        self._Home1_new = self.pushButton("Motor 1 Home new")
 
         self._startMeasurement.clicked.connect(lambda: self.functionMove())
 
         self._Home1.clicked.connect(lambda: self.functionHome(1, self._M1FROMValue.text()))
         self._Home2.clicked.connect(lambda: self.functionHome(2, self._M2FROMValue.text()))
         self._Home3.clicked.connect(lambda: self.functionHome(3, self._M3FROMValue.text()))
+        self._Home1_new.clicked.connect(lambda: self.startHomingSelectedMotor(1))
 
         # Progress bar
         self._progressBar = self.createProgressBar(0)
@@ -139,6 +145,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._Home1, 13, 1, 1, 1)
         self._layout.addWidget(self._Home2, 14, 1, 1, 1)
         self._layout.addWidget(self._Home3, 15, 1, 1, 1)
+        self._layout.addWidget(self._Home1_new, 16, 1, 1, 1)
         self._layout.addWidget(self._progressBar, 13, 3, 1, 2)
         self._layout.addWidget(_urlLabel, 17, 4, 1, 1)
         self._layout.addWidget(logo, 0, 4, 1, 2)
@@ -202,7 +209,6 @@ class Window(QMainWindow):
         self._Home1.setEnabled(True)
         self._Home2.setEnabled(True)
         self._Home3.setEnabled(True)
-        print("Měření dokončeno.")
 
     def daysHoursMinutesSeconds(self, dt):
         return (
@@ -233,6 +239,19 @@ class Window(QMainWindow):
                 + "s"
         )
         self._labelTimeToFinishValue.setText(n)
+
+    def startHomingSelectedMotor(self, motorID):
+        self.myworkerhome = HomingThread(motorID)
+        self.myworkerhome.finished.connect(self.updateLayoutAfterFinishedMove)  # propojeni signalu
+        self.myworkerhome.on_progress.connect(self.updateProgressBar)  # propojeni signalu
+
+        print("Clicked motor:", motorID)
+        self._startMeasurement.setEnabled(False)
+        self._Home1.setEnabled(False)
+        self._Home2.setEnabled(False)
+        self._Home3.setEnabled(False)
+
+        self.myworkerhome.start()
 
     def functionHome(self, motorNum, MXFromValue):
         self.myworkerhome = WorkerHome(motorNum)
@@ -290,6 +309,21 @@ class Window(QMainWindow):
         self._Home3.setEnabled(False)
 
         self.myworkermove.start()
+
+
+# Threads for moving the motors:
+class HomingThread(QThread):
+    on_progress = Signal(int)
+    controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
+
+    def __init__(self, motorID):
+        super().__init__()
+        self.controller.connect()
+        self._active_motor = self.controller.motors[motorID]
+
+    def run(self):
+        self._active_motor.home()
+        print("Homing done.")
 
 
 if __name__ == '__main__':

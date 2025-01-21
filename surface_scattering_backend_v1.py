@@ -25,8 +25,6 @@ from msl.equipment.resources.thorlabs import MotionControl
 import pandas as pd
 from datetime import timedelta
 
-print("library import done.")
-
 
 # Class representing the motor hardware
 class Motor:
@@ -36,21 +34,20 @@ class Motor:
         self._position_device_unit = None
         self._position_real_unit = None
         self._polling_rate = 200
+        self._controller = parent.connectedController
 
     def _wait(self, value: int):
-        controller = self._parent.connect()
-        controller.clear_message_queue(self.motorID)
-        message_type, message_id, _ = controller.wait_for_message(self.motorID)
+        self._controller.clear_message_queue(self.motorID)
+        message_type, message_id, _ = self._controller.wait_for_message(self.motorID)
         while message_type != 2 or message_id != value:
             position = self.getPosition()
             print(f"At position {position[0]} [device units] {position[1]} [real-world units]")
-            message_type, message_id, _ = controller.wait_for_message(self.motorID)
+            message_type, message_id, _ = self._controller.wait_for_message(self.motorID)
 
     # Wrappers for controlling the motors
     def _load_settings(self):
         if self._parent is not None:
-            controller = self._parent.connect()
-            controller.load_settings(self.motorID)
+            self._controller.load_settings(self.motorID)
             print("Motor setting loaded.")
             time.sleep(2)  # TODO Check if delay is necessary and how long
         else:
@@ -58,24 +55,21 @@ class Motor:
 
     def _start_polling(self, rate=200):
         if self._parent is not None:
-            controller = self._parent.connect()
-            controller.start_polling(self.motorID, rate)
-            print("polling started...")
+            self._controller.start_polling(self.motorID, rate)
+            print("Polling started...")
         else:
             print("Not connected to controller.")
 
     def _stop_polling(self):
         if self._parent is not None:
-            controller = self._parent.connect()
-            controller.stop_polling(self.motorID)
-            print("polling stopped.")
+            self._controller.stop_polling(self.motorID)
+            print("Polling stopped.")
         else:
             print("Not connected to controller.")
 
     def getPosition(self):
-        controller = self._parent.connect()
-        self._position_device_unit = controller.get_position(self.motorID)
-        self._position_real_unit = controller.get_real_value_from_device_unit(
+        self._position_device_unit = self._controller.get_position(self.motorID)
+        self._position_real_unit = self._controller.get_real_value_from_device_unit(
             self.motorID, self._position_device_unit, "DISTANCE")
         print(f"At position: {self._position_device_unit} [device units]")
         print(f"At position: {self._position_real_unit} [real units]")
@@ -83,10 +77,9 @@ class Motor:
 
     def home(self):
         if self._parent is not None:
-            controller = self._parent.connect()
             self._load_settings()
             self._start_polling(rate=self._polling_rate)
-            controller.home(self.motorID)
+            self._controller.home(self.motorID)
             print(f"Homing motor {self.motorID}...")
             self._wait(0)
             time.sleep(1)
@@ -113,6 +106,7 @@ class MotorController:
             manufacturer=self._manufacturer, model=self._model,  # update for your device
             serial=self._serial,  # update for your device
             connection=ConnectionRecord(address=self._address, backend=self._backend))
+        self.connectedController = None
         self.channels = []  # List of available channels
         self.motors = []  # List of available motors
 
@@ -122,29 +116,33 @@ class MotorController:
         self.motor_3 = None
 
     def connect(self):
-        _motorController = None
         try:
-            _motorController = self._record.connect()
-            print("Record set up successfully.")
-            _motorController.build_device_list()
-
+            MotionControl.build_device_list()
             print("Device list built successfully.")
-            self.channels = list(
-                range(1, _motorController.max_channel_count()))  # Scan how many channels are on the device
 
+            self.connectedController = self._record.connect()
+            print("Record set up successfully.")
+
+            self.channels = list(
+                range(0, self.connectedController.max_channel_count()))  # Scan how many channels are on the device
+            print(self.channels)
             print("Identifying motors...")
             # Create list of available motors
             for i, chanel in enumerate(self.channels):
-                self.motors.append(Motor(self, i + 1))
+                self.motors.append(Motor(self, i))
+                print(f"    Motor {i} identified.")
 
+            # TODO fix motor assignment when no channels found
+            """
             # Assign variable for each motor separately
             self.motor_1 = self.motors[0]
             self.motor_2 = self.motors[1]
             self.motor_3 = self.motors[2]
+            """
+            print("Connection done.")
 
         except OSError:
             print("No devices found.")
-        return _motorController
 
 
 class WorkerHome(QThread):
@@ -194,6 +192,8 @@ class WorkerHome(QThread):
 
         # connect to the Benchtop Stepper Motor
         self.motor = record.connect()
+        print(record)
+        print(self.motor)
         print("Connected to {}".format(self.motor))
 
         # all available channels from the device
@@ -716,7 +716,3 @@ BSC203ThreeChannelBenchtopStepperMotorController = MotorController(
     serial="70224414",
     address="SDK::Thorlabs.MotionControl.Benchtop.StepperMotor.dll",
     backend=Backend.MSL)
-
-
-if __name__ == '__main__':
-    pass
