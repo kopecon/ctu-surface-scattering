@@ -22,6 +22,8 @@ from surface_scattering_backend_v1 import WorkerMove
 
 print("Library import done.")
 
+controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
+
 
 class Window(QMainWindow):
     def __init__(self):
@@ -94,6 +96,7 @@ class Window(QMainWindow):
         self._Home1 = self._push_button("Motor 1 Home")
         self._Home2 = self._push_button("Motor 2 Home")
         self._Home3 = self._push_button("Motor 3 Home")
+        self._move_1_to = self._push_button("Move 1 to")
         self._scan = self._push_button("Scan")
 
         self._startMeasurement.clicked.connect(lambda: self.functionMove())
@@ -101,6 +104,7 @@ class Window(QMainWindow):
         self._Home1.clicked.connect(lambda: self.start_homing(1))
         self._Home2.clicked.connect(lambda: self.start_homing(2))
         self._Home3.clicked.connect(lambda: self.start_homing(3))
+        self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._M1TOValue.text())))
 
         self._scan.clicked.connect(lambda: self.start_scanning())
 
@@ -150,6 +154,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._Home1, 13, 1, 1, 1)
         self._layout.addWidget(self._Home2, 14, 1, 1, 1)
         self._layout.addWidget(self._Home3, 15, 1, 1, 1)
+        self._layout.addWidget(self._move_1_to, 13, 2, 1, 1)
         self._layout.addWidget(self._progressBar, 13, 3, 1, 2)
         self._layout.addWidget(_urlLabel, 17, 4, 1, 1)
         self._layout.addWidget(logo, 0, 4, 1, 2)
@@ -259,6 +264,19 @@ class Window(QMainWindow):
 
         self.worker.start()
 
+    def move_to(self, motor_id, position):
+        self.worker = MovingThread(motor_id, position)
+        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
+        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
+
+        print("Activated motor:", motor_id)
+        self._startMeasurement.setEnabled(False)
+        self._Home1.setEnabled(False)
+        self._Home2.setEnabled(False)
+        self._Home3.setEnabled(False)
+
+        self.worker.start()
+
     def start_scanning(self):
         if self._oneDMeasurement.isChecked():
             self._oneD = 1
@@ -350,7 +368,22 @@ class HomingThread(QThread):
 
     def run(self) -> None:
         self._active_motor.home()
-        self.controller.disconnect()
+        self.controller.connectedController.disconnect()
+        print("Controller disconnected.")
+
+
+class MovingThread(QThread):
+    on_progress = Signal(int)
+
+    def __init__(self, motor_id, position):
+        super().__init__()
+        self._position = position
+        controller.connect()
+        self._active_motor = controller.motors[motor_id]
+
+    def run(self) -> None:
+        self._active_motor.move_to_position(self._position)
+        controller.connectedController.disconnect()
         print("Controller disconnected.")
 
 
@@ -371,7 +404,7 @@ class ScanningThread(QThread):
         else:
             print("3D scanning.")
             self.controller.scanning_3d(self.input_data, self.on_progress, self.on_progress2)
-        self.controller.disconnect()
+        self.controller.connectedController.disconnect()
         print("Controller disconnected.")
 
 

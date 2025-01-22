@@ -95,14 +95,14 @@ class Motor:
             print("Not connected to controller.")
 
     def move_to_position(self, position):
-        self._controller.load_settings()
+        self._load_settings()
         time.sleep(1)  # TODO find if necessary
-        self._controller.start_polling(rate=self._polling_rate)
+        self._start_polling()
         position_in_device_unit = self._controller.get_device_unit_from_real_value(self.motor_id, position, "DISTANCE")
         # TODO Add limit checking and direction change based on position
         self._controller.move_to_position(self.motor_id, position_in_device_unit)
         self._wait(1)  # TODO find if necessary
-        self._controller.stop_polling(self.motor_id)
+        self._stop_polling()
 
 
 # Class representing the motor controller hardware
@@ -153,12 +153,10 @@ class MotorController:
                 print(f"    Motor {i+1} identified.")
 
             # TODO fix motor assignment when no channels found
-            """
             # Assign variable for each motor separately
-            self.motor_1 = self.motors[0]
-            self.motor_2 = self.motors[1]
-            self.motor_3 = self.motors[2]
-            """
+            self.motor_1 = self.motors[1]
+            self.motor_2 = self.motors[2]
+            self.motor_3 = self.motors[3]
             print("Connection done.")
 
         except OSError:
@@ -369,6 +367,7 @@ class MotorController:
         print("Max = ", maximum)
 
         for i in self.find_range(f1, t1, s1):
+            print(self.motor_1)
             self.motor_1.move_to_position(i)
 
             angles.pop(0)
