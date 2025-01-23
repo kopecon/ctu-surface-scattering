@@ -294,49 +294,6 @@ class Window(QMainWindow):
 
         self.worker.start()
 
-    def functionMove(self):
-        if self._oneDMeasurement.isChecked():
-            self._oneD = 1
-            print("1D measurement ON")
-        else:
-            self._oneD = 0
-            print("1D measurement OFF")
-
-        self._inputData = [
-            self._M1FROMValue.text(),
-            self._M1TOValue.text(),
-            self._M1STEPValue.text(),
-            self._M2FROMValue.text(),
-            self._M2TOValue.text(),
-            self._M2STEPValue.text(),
-            self._M3FROMValue.text(),
-            self._M3TOValue.text(),
-            self._M3STEPValue.text(),
-            self._MESPOINTSValue.text(),
-            self._oneD,
-        ]
-        print("Data(functionMove): ", self._inputData)
-        self.myworkermove = WorkerMove(self._inputData)
-        self.myworkermove.finished.connect(
-            self._update_layout_after_finished_scanning
-        )  # propojeni signalu
-        self.myworkermove.on_progress.connect(
-            self._update_progress_bar
-        )  # propojeni signalu
-
-        self.myworkermove.on_progress2.connect(
-            self._update_progress_bar_label
-        )  # propojeni signalu
-
-        print("Run Move Function")
-
-        self._startMeasurement.setEnabled(False)
-        self._Home1.setEnabled(False)
-        self._Home2.setEnabled(False)
-        self._Home3.setEnabled(False)
-
-        self.myworkermove.start()
-
 
 # Threads for moving the motors:
 class HomingThread(QThread):
