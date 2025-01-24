@@ -31,8 +31,12 @@ The surface scattering measuring project consists of 3 files:
     surface_scattering_scan.py: Provides the scan calculations and output file storing
 
 Hardware:
-    Controller: https://www.thorlabs.com/thorproduct.cfm?partnumber=BSC203
-    Motors: https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1064
+    Controller: 
+        BSC203 - Three-Channel Benchtop Stepper Motor Controller 
+        Link - https://www.thorlabs.com/thorproduct.cfm?partnumber=BSC203
+    Motors: 
+        HDR50 - Heavy-Duty Rotation Stage with Stepper Motor
+        Link - https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1064
 
 Dependent Software:
     "Thorlabs Kinesis" needs to be installed on the device which is to be executing this python script.
