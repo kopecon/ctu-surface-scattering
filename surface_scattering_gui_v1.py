@@ -15,152 +15,172 @@ from PySide6.QtWidgets import (
 import sys
 from datetime import timedelta
 
-import surface_scattering_backend_v1
 # Custom packages from this project
-from surface_scattering_backend_v1 import WorkerMove
-
+import surface_scattering_backend_v1
 
 print("Library import done.")
 
+"""
+surface_scattering_gui.py: The main file that is meant to be executed. Builds a GUI to interact with the lab measurement
+device.
+
+surface_scattering_backend.py: Provides the calculations and access and usage code for the hardware.  
+
+
+
+Controller: https://www.thorlabs.com/thorproduct.cfm?partnumber=BSC203
+Motors: https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1064
+Thorlabs Kinesis needs to be installed on the device executing this python script and correct motors have to be
+set up in the Thorlabs Kinesis user interface.
+Kinesis user interface has to be closed during this program run, or the controller fails to connect.
+"""
+# TODO: Check if homing can be activated for each motor at the same time (do we need to disable homing buttons?)
+
 controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
+
+
+def days_hours_minutes_seconds(dt):
+    # TODO: Refactor this into readable code
+    return (
+        dt.days,  # days
+        dt.seconds // 3600,  # hours
+        (dt.seconds // 60) % 60,  # minutes
+        dt.seconds - ((dt.seconds // 3600) * 3600) - ((dt.seconds % 3600 // 60) * 60)  # seconds
+    )
 
 
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
-        _centralWidget = QWidget()
-        self.setCentralWidget(_centralWidget)
+        _central_widget = QWidget()
+        self.setCentralWidget(_central_widget)
         self._layout = QGridLayout()
-        _centralWidget.setLayout(self._layout)
+        _central_widget.setLayout(self._layout)
 
         self.setWindowTitle("Thorlab 3 Wheel")
         self.setFixedSize(QSize(600, 600))
 
         # Measurement arguments:
-        self._inputData = []
-        self._oneD = 0
+        self._input_data = []
+        self._1d_scan = 0
 
         # Thread variables
         self.worker = None
 
         # Labels
-        _labelMotorSetupTitle = self._label("Motors Setup:")
+        _label_motor_setup_title = self._label("Motors Setup:")
 
-        _labelM1from = self._label("From")
-        _labelM1to = self._label("To")
-        _labelM1step = self._label("Step")
-        _labelM1 = self._label("Motor 1")
+        _label_m1_from = self._label("From")
+        _label_m1_to = self._label("To")
+        _label_m1_step = self._label("Step")
+        _label_m1 = self._label("Motor 1")
 
-        _labelM2from = self._label("From")
-        _labelM2to = self._label("To")
-        _labelM2step = self._label("Step")
-        _labelM2 = self._label("Motor 2")
+        _label_m2_from = self._label("From")
+        _label_m2_to = self._label("To")
+        _label_m2_step = self._label("Step")
+        _label_m2 = self._label("Motor 2")
 
-        _labelM3from = self._label("From")
-        _labelM3to = self._label("To")
-        _labelM3step = self._label("Step")
-        _labelM3 = self._label("Motor 3")
+        _label_m3_from = self._label("From")
+        _label_m3_to = self._label("To")
+        _label_m3_step = self._label("Step")
+        _label_m3 = self._label("Motor 3")
 
-        _labelMeasurementSetupTitle = self._label("Measurement Setup:")
+        _label_measurement_setup_title = self._label("Measurement Setup:")
 
-        _labelMeasurementNum = self._label("N Measurement points")
-        _labelMeasurementN = self._label("[n]")
+        _label_measurement_num = self._label("N Measurement points")
+        _label_measurement_n = self._label("[n]")
 
-        _labelHomeTitle = self._label("Homing:")
+        _label_home_title = self._label("Homing:")
 
-        _labelTimeToFinishTitle = self._label("Time to Finish:")
-        self._labelTimeToFinishValue = self._label("0d 0h 0m 0s")
+        _label_time_to_finish_title = self._label("Time to Finish:")
+        self._label_time_to_finish_value = self._label("0d 0h 0m 0s")
 
-        _urlLabel = self._label(
+        _label_url = self._label(
             f"<a href='https://www.numsolution.cz/'>https://www.numsolution.cz/</a>"
         )
-        _urlLabel.setOpenExternalLinks(True)
+        _label_url.setOpenExternalLinks(True)
 
         # Line edits
-        self._M1FROMValue = self._line_edit("0")
-        self._M1TOValue = self._line_edit("90")
-        self._M1STEPValue = self._line_edit("30")
+        self._m1_from_value = self._line_edit("0")
+        self._m1_to_value = self._line_edit("90")
+        self._m1_step_value = self._line_edit("30")
 
-        self._M2FROMValue = self._line_edit("90")
-        self._M2TOValue = self._line_edit("180")
-        self._M2STEPValue = self._line_edit("30")
+        self._m2_from_value = self._line_edit("90")
+        self._m2_to_value = self._line_edit("180")
+        self._m2_step_value = self._line_edit("30")
 
-        self._M3FROMValue = self._line_edit("0")
-        self._M3TOValue = self._line_edit("90")
-        self._M3STEPValue = self._line_edit("30")
+        self._m3_from_value = self._line_edit("0")
+        self._m3_to_value = self._line_edit("90")
+        self._m3_step_value = self._line_edit("30")
 
-        self._MESPOINTSValue = self._line_edit("500")
+        self._measurement_points_value = self._line_edit("500")
 
         # Buttons
-        self._startMeasurement = self._push_button("Start Measurement")
-        self._Home1 = self._push_button("Motor 1 Home")
-        self._Home2 = self._push_button("Motor 2 Home")
-        self._Home3 = self._push_button("Motor 3 Home")
+        self._home1 = self._push_button("Motor 1 Home")
+        self._home2 = self._push_button("Motor 2 Home")
+        self._home3 = self._push_button("Motor 3 Home")
         self._move_1_to = self._push_button("Move 1 to")
         self._scan = self._push_button("Scan")
 
-        self._startMeasurement.clicked.connect(lambda: self.functionMove())
-
-        self._Home1.clicked.connect(lambda: self.start_homing(1))
-        self._Home2.clicked.connect(lambda: self.start_homing(2))
-        self._Home3.clicked.connect(lambda: self.start_homing(3))
-        self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._M1TOValue.text())))
+        self._home1.clicked.connect(lambda: self.start_homing(1))
+        self._home2.clicked.connect(lambda: self.start_homing(2))
+        self._home3.clicked.connect(lambda: self.start_homing(3))
+        self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._m1_to_value.text())))
 
         self._scan.clicked.connect(lambda: self.start_scanning())
 
         # Progress bar
-        self._progressBar = self._progress_bar(0)
+        self._progress_bar = self._progress_bar(0)
 
         # Checkbox
-        self._oneDMeasurement = QCheckBox("1D Measurement", self)
-        self._oneDMeasurement.setChecked(False)
-        self._oneDMeasurement.clicked.connect(self._disable_value_editing)
+        self._1d_measurement = QCheckBox("1D Measurement", self)
+        self._1d_measurement.setChecked(False)
+        self._1d_measurement.clicked.connect(self._restrict_value_editing_for_1d_measurement)
 
         # Logo
         logo = self._create_logo()
 
         # Place and display created widgets
-        self._layout.addWidget(_labelMotorSetupTitle, 0, 0, 1, 1)
-        self._layout.addWidget(_labelM1from, 1, 1, 1, 1)
-        self._layout.addWidget(_labelM1to, 1, 2, 1, 1)
-        self._layout.addWidget(_labelM1step, 1, 3, 1, 1)
-        self._layout.addWidget(_labelM1, 2, 0, 1, 1)
-        self._layout.addWidget(_labelM2from, 4, 1, 1, 1)
-        self._layout.addWidget(_labelM2to, 4, 2, 1, 1)
-        self._layout.addWidget(_labelM2step, 4, 3, 1, 1)
-        self._layout.addWidget(_labelM2, 5, 0, 1, 1)
-        self._layout.addWidget(_labelM3from, 6, 1, 1, 1)
-        self._layout.addWidget(_labelM3to, 6, 2, 1, 1)
-        self._layout.addWidget(_labelM3step, 6, 3, 1, 1)
-        self._layout.addWidget(_labelM3, 7, 0, 1, 1)
-        self._layout.addWidget(_labelMeasurementSetupTitle, 9, 0, 1, 1)
-        self._layout.addWidget(_labelMeasurementNum, 10, 0, 1, 1)
-        self._layout.addWidget(_labelMeasurementN, 10, 2, 1, 1)
-        self._layout.addWidget(_labelHomeTitle, 12, 0, 1, 1)
-        self._layout.addWidget(_labelTimeToFinishTitle, 12, 3, 1, 1)
-        self._layout.addWidget(self._labelTimeToFinishValue, 12, 4, 1, 1)
-        self._layout.addWidget(self._M1FROMValue, 2, 1, 1, 1)
-        self._layout.addWidget(self._M1TOValue, 2, 2, 1, 1)
-        self._layout.addWidget(self._M1STEPValue, 2, 3, 1, 1)
-        self._layout.addWidget(self._M2FROMValue, 5, 1, 1, 1)
-        self._layout.addWidget(self._M2TOValue, 5, 2, 1, 1)
-        self._layout.addWidget(self._M2STEPValue, 5, 3, 1, 1)
-        self._layout.addWidget(self._M3FROMValue, 7, 1, 1, 1)
-        self._layout.addWidget(self._M3TOValue, 7, 2, 1, 1)
-        self._layout.addWidget(self._M3STEPValue, 7, 3, 1, 1)
-        self._layout.addWidget(self._MESPOINTSValue, 10, 1, 1, 1)
-        self._layout.addWidget(self._startMeasurement, 11, 3, 1, 1)
-        self._layout.addWidget(self._scan, 15, 3, 1, 1)
-        self._layout.addWidget(self._Home1, 13, 1, 1, 1)
-        self._layout.addWidget(self._Home2, 14, 1, 1, 1)
-        self._layout.addWidget(self._Home3, 15, 1, 1, 1)
+        self._layout.addWidget(_label_motor_setup_title, 0, 0, 1, 1)
+        self._layout.addWidget(_label_m1_from, 1, 1, 1, 1)
+        self._layout.addWidget(_label_m1_to, 1, 2, 1, 1)
+        self._layout.addWidget(_label_m1_step, 1, 3, 1, 1)
+        self._layout.addWidget(_label_m1, 2, 0, 1, 1)
+        self._layout.addWidget(_label_m2_from, 4, 1, 1, 1)
+        self._layout.addWidget(_label_m2_to, 4, 2, 1, 1)
+        self._layout.addWidget(_label_m2_step, 4, 3, 1, 1)
+        self._layout.addWidget(_label_m2, 5, 0, 1, 1)
+        self._layout.addWidget(_label_m3_from, 6, 1, 1, 1)
+        self._layout.addWidget(_label_m3_to, 6, 2, 1, 1)
+        self._layout.addWidget(_label_m3_step, 6, 3, 1, 1)
+        self._layout.addWidget(_label_m3, 7, 0, 1, 1)
+        self._layout.addWidget(_label_measurement_setup_title, 9, 0, 1, 1)
+        self._layout.addWidget(_label_measurement_num, 10, 0, 1, 1)
+        self._layout.addWidget(_label_measurement_n, 10, 2, 1, 1)
+        self._layout.addWidget(_label_home_title, 12, 0, 1, 1)
+        self._layout.addWidget(_label_time_to_finish_title, 12, 3, 1, 1)
+        self._layout.addWidget(self._label_time_to_finish_value, 12, 4, 1, 1)
+        self._layout.addWidget(self._m1_from_value, 2, 1, 1, 1)
+        self._layout.addWidget(self._m1_to_value, 2, 2, 1, 1)
+        self._layout.addWidget(self._m1_step_value, 2, 3, 1, 1)
+        self._layout.addWidget(self._m2_from_value, 5, 1, 1, 1)
+        self._layout.addWidget(self._m2_to_value, 5, 2, 1, 1)
+        self._layout.addWidget(self._m2_step_value, 5, 3, 1, 1)
+        self._layout.addWidget(self._m3_from_value, 7, 1, 1, 1)
+        self._layout.addWidget(self._m3_to_value, 7, 2, 1, 1)
+        self._layout.addWidget(self._m3_step_value, 7, 3, 1, 1)
+        self._layout.addWidget(self._measurement_points_value, 10, 1, 1, 1)
+        self._layout.addWidget(self._scan, 11, 3, 1, 1)
+        self._layout.addWidget(self._home1, 13, 1, 1, 1)
+        self._layout.addWidget(self._home2, 14, 1, 1, 1)
+        self._layout.addWidget(self._home3, 15, 1, 1, 1)
         self._layout.addWidget(self._move_1_to, 13, 2, 1, 1)
-        self._layout.addWidget(self._progressBar, 13, 3, 1, 2)
-        self._layout.addWidget(_urlLabel, 17, 4, 1, 1)
+        self._layout.addWidget(self._progress_bar, 13, 3, 1, 2)
+        self._layout.addWidget(_label_url, 17, 4, 1, 1)
         self._layout.addWidget(logo, 0, 4, 1, 2)
-        self._layout.addWidget(self._oneDMeasurement, 11, 4, 1, 1)
+        self._layout.addWidget(self._1d_measurement, 11, 4, 1, 1)
 
-    # --------- Functions to make creating widgets easier ----------------
+    # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
     def _label(text: str) -> QLabel:
         label = QLabel()
@@ -185,8 +205,6 @@ class Window(QMainWindow):
         progress_bar.setValue(num)
         return progress_bar
 
-    # -----------------------------------------------------------------------
-
     @staticmethod
     def _create_logo():
         logo_png = QPixmap("NUMlogo_200x93.png")
@@ -195,61 +213,54 @@ class Window(QMainWindow):
         logo.setAlignment(Qt.AlignmentFlag.AlignRight)
         logo.setPixmap(logo_png)
         return logo
+    # ------------------------------------------------------------------------------------------------------------------
 
-    def _disable_value_editing(self):
-        if self._oneDMeasurement.isChecked():
-            self._M1TOValue.setEnabled(False)
-            self._M1STEPValue.setEnabled(False)
-            self._M2TOValue.setEnabled(False)
-            self._M2STEPValue.setEnabled(False)
-            self._M3FROMValue.setEnabled(False)
-            self._M3TOValue.setEnabled(False)
+    def _restrict_value_editing_for_1d_measurement(self):
+        if self._1d_measurement.isChecked():
+            self._m1_to_value.setEnabled(False)
+            self._m1_step_value.setEnabled(False)
+            self._m2_to_value.setEnabled(False)
+            self._m2_step_value.setEnabled(False)
+            self._m3_from_value.setEnabled(False)
+            self._m3_to_value.setEnabled(False)
 
         else:
-            self._M1TOValue.setEnabled(True)
-            self._M1STEPValue.setEnabled(True)
-            self._M2TOValue.setEnabled(True)
-            self._M2STEPValue.setEnabled(True)
-            self._M3FROMValue.setEnabled(True)
-            self._M3TOValue.setEnabled(True)
+            self._m1_to_value.setEnabled(True)
+            self._m1_step_value.setEnabled(True)
+            self._m2_to_value.setEnabled(True)
+            self._m2_step_value.setEnabled(True)
+            self._m3_from_value.setEnabled(True)
+            self._m3_to_value.setEnabled(True)
 
     def _update_layout_after_finished_scanning(self):
-        self._progressBar.setValue(0)
-        self._startMeasurement.setEnabled(True)
-        self._Home1.setEnabled(True)
-        self._Home2.setEnabled(True)
-        self._Home3.setEnabled(True)
-
-    @staticmethod
-    def _days_hours_minutes_seconds(dt):
-        return (
-            dt.days,  # days
-            dt.seconds // 3600,  # hours
-            (dt.seconds // 60) % 60,  # minutes
-            dt.seconds
-            - ((dt.seconds // 3600) * 3600)
-            - ((dt.seconds % 3600 // 60) * 60),
-            # seconds
-        )
+        self._progress_bar.setValue(0)
+        self._home1.setEnabled(True)
+        self._home2.setEnabled(True)
+        self._home3.setEnabled(True)
 
     def _update_progress_bar(self, n):
-        self._progressBar.setValue(n)
+        self._progress_bar.setValue(n)
         print("Progress num:", n)
 
     def _update_progress_bar_label(self, dm: float):
         delta = timedelta(seconds=dm)
-        (days, hours, minutes, seconds) = self._days_hours_minutes_seconds(delta)
-        n = (
-                str(days)
-                + "d "
-                + str(hours)
-                + "h "
-                + str(minutes)
-                + "m "
-                + str(seconds)
-                + "s"
-        )
-        self._labelTimeToFinishValue.setText(n)
+        (days, hours, minutes, seconds) = days_hours_minutes_seconds(delta)
+        n = (str(days)
+             + "d "
+             + str(hours)
+             + "h "
+             + str(minutes)
+             + "m "
+             + str(seconds)
+             + "s")
+        self._label_time_to_finish_value.setText(n)
+
+    def get_window_widgets(self):
+        all_window_widgets = []
+        for i in range(self._layout.count()):
+            widget = self._layout.itemAt(i).widget()
+            all_window_widgets.append(widget)
+        return all_window_widgets
 
     def start_homing(self, motor_id):
         self.worker = HomingThread(motor_id)
@@ -257,10 +268,9 @@ class Window(QMainWindow):
         self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
 
         print("Activated motor:", motor_id)
-        self._startMeasurement.setEnabled(False)
-        self._Home1.setEnabled(False)
-        self._Home2.setEnabled(False)
-        self._Home3.setEnabled(False)
+        self._home1.setEnabled(False)
+        self._home2.setEnabled(False)
+        self._home3.setEnabled(False)
 
         self.worker.start()
 
@@ -270,44 +280,42 @@ class Window(QMainWindow):
         self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
 
         print("Activated motor:", motor_id)
-        self._startMeasurement.setEnabled(False)
-        self._Home1.setEnabled(False)
-        self._Home2.setEnabled(False)
-        self._Home3.setEnabled(False)
+        self._home1.setEnabled(False)
+        self._home2.setEnabled(False)
+        self._home3.setEnabled(False)
 
         self.worker.start()
 
     def start_scanning(self):
-        if self._oneDMeasurement.isChecked():
-            self._oneD = 1
+        if self._1d_measurement.isChecked():
+            self._1d_scan = 1
             print("1D measurement ON")
         else:
-            self._oneD = 0
+            self._1d_scan = 0
             print("1D measurement OFF")
 
-        self._inputData = [
-            self._M1FROMValue.text(),
-            self._M1TOValue.text(),
-            self._M1STEPValue.text(),
-            self._M2FROMValue.text(),
-            self._M2TOValue.text(),
-            self._M2STEPValue.text(),
-            self._M3FROMValue.text(),
-            self._M3TOValue.text(),
-            self._M3STEPValue.text(),
-            self._MESPOINTSValue.text(),
-            self._oneD]
+        self._input_data = [
+            self._m1_from_value.text(),
+            self._m1_to_value.text(),
+            self._m1_step_value.text(),
+            self._m2_from_value.text(),
+            self._m2_to_value.text(),
+            self._m2_step_value.text(),
+            self._m3_from_value.text(),
+            self._m3_to_value.text(),
+            self._m3_step_value.text(),
+            self._measurement_points_value.text(),
+            self._1d_scan]
 
-        print("Input Data: ", self._inputData)
-        self.worker = ScanningThread(self._inputData)
+        print("Input Data: ", self._input_data)
+        self.worker = ScanningThread(self._input_data)
         self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
         self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
         self.worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
 
-        self._startMeasurement.setEnabled(False)
-        self._Home1.setEnabled(False)
-        self._Home2.setEnabled(False)
-        self._Home3.setEnabled(False)
+        self._home1.setEnabled(False)
+        self._home2.setEnabled(False)
+        self._home3.setEnabled(False)
         self._scan.setEnabled(False)
 
         self.worker.start()
@@ -316,16 +324,15 @@ class Window(QMainWindow):
 # Threads for moving the motors:
 class HomingThread(QThread):
     on_progress = Signal(int)
-    controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
 
     def __init__(self, motor_id):
         super().__init__()
-        self.controller.connect()
-        self._active_motor = self.controller.motors[motor_id]
+        controller.connect()
+        self._active_motor = controller.motors[motor_id]
 
     def run(self) -> None:
         self._active_motor.home()
-        self.controller.connectedController.disconnect()
+        controller.disconnect()
         print("Controller disconnected.")
 
 
@@ -340,28 +347,28 @@ class MovingThread(QThread):
 
     def run(self) -> None:
         self._active_motor.move_to_position(self._position)
-        controller.connectedController.disconnect()
+        controller.disconnect()
         print("Controller disconnected.")
 
 
 class ScanningThread(QThread):
     on_progress = Signal(int)
     on_progress2 = Signal(float)
-    controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
 
     def __init__(self, input_data):
         super().__init__()
         self.input_data = input_data
-        self.controller.connect()
+        controller.connect()
 
     def run(self) -> None:
         if self.input_data[10] == 1:
             print("1D scanning.")
-            self.controller.scanning_1d(self.input_data, self.on_progress, self.on_progress2)
+            controller.scanning_1d(self.input_data, self.on_progress, self.on_progress2)
         else:
             print("3D scanning.")
-            self.controller.scanning_3d(self.input_data, self.on_progress, self.on_progress2)
-        self.controller.connectedController.disconnect()
+            controller.scanning_3d(self.input_data, self.on_progress, self.on_progress2)
+
+        controller.disconnect()
         print("Controller disconnected.")
 
 

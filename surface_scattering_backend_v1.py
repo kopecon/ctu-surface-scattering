@@ -1,7 +1,6 @@
 # V8 + logy pro kontrolu u 3D mereni radek 536-555
 # surface_scattering_v1 = GUI_GridnatacedlaV9 + Edit from "Kopecky Ondrej 2025"
 
-from PySide6.QtCore import QThread, Signal
 
 import os
 import time
@@ -12,8 +11,6 @@ from nidaqmx.constants import Edge
 from nidaqmx.constants import AcquisitionType
 
 from datetime import datetime
-
-from pprint import pprint
 
 from msl.equipment import (
     EquipmentRecord,
@@ -44,7 +41,7 @@ class Motor:
             print(f"At position {position[0]} [device units] {position[1]} [real-world units]")
             message_type, message_id, _ = self._controller.wait_for_message(self.motor_id)
 
-    # Wrappers for controlling the motors
+    # ---------------------------------------------------------------------------    Wrappers for controlling the motors
     def _load_settings(self):
         if self._parent is not None:
             self._controller.load_settings(self.motor_id)
@@ -93,6 +90,7 @@ class Motor:
             print(f"Finishing homing motor {self.motor_id}...")
         else:
             print("Not connected to controller.")
+    # ------------------------------------------------------------------------------------------------------------------
 
     def move_to_position(self, position):
         self._load_settings()
@@ -161,6 +159,12 @@ class MotorController:
 
         except OSError:
             print("No devices found.")
+
+    def disconnect(self):
+        if self.connectedController:
+            self.connectedController.disconnect()
+        else:
+            print("Unable to disconnect. controller is not connected.")
 
     @staticmethod
     def find_range(start, stop, step):
