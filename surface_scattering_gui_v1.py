@@ -98,8 +98,9 @@ class Window(QMainWindow):
 
         _label_measurement_setup_title = self._label("Measurement Setup:")
 
-        _label_measurement_num = self._label("N Measurement points")
+        _label_measurement_num = self._label("Measurement points")
         _label_measurement_n = self._label("[n]")
+        _label_scan_type = self._label("Scan type:")
 
         _label_home_title = self._label("Homing:")
 
@@ -130,9 +131,9 @@ class Window(QMainWindow):
         self._home1 = self._push_button("Motor 1 Home")
         self._home2 = self._push_button("Motor 2 Home")
         self._home3 = self._push_button("Motor 3 Home")
-        self._move_1_to = self._push_button("Move 1 to")
-        self._move_2_to = self._push_button("Move 2 to")
-        self._move_3_to = self._push_button("Move 3 to")
+        self._move_1_to = self._push_button("Move")
+        self._move_2_to = self._push_button("Move")
+        self._move_3_to = self._push_button("Move")
         self._scan = self._push_button("Scan")
 
         self._home1.clicked.connect(lambda: self.start_homing(1))
@@ -148,12 +149,13 @@ class Window(QMainWindow):
         self._progress_bar = self._progress_bar(0)
 
         # Checkbox
-        self._1d_measurement = QCheckBox("1D Measurement", self)
-        self._3d_measurement = QCheckBox("3D Measurement", self)
-        self._1d_measurement.setChecked(False)
-        self._3d_measurement.setChecked(True)
-        self._1d_measurement.clicked.connect(self._restrict_value_editing_for_1d_measurement)
-        self._3d_measurement.clicked.connect(self._restrict_value_editing_for_3d_measurement)
+        self._measurement_1d = QCheckBox("1D Measurement", self)
+        self._measurement_3d = QCheckBox("3D Measurement", self)
+        self._measurement_1d.setChecked(False)
+        self._measurement_3d.setChecked(True)
+        # self._measurement_3d.setEnabled(False)
+        self._measurement_1d.clicked.connect(self._restrict_value_editing_for_1d_measurement)
+        self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_measurement)
 
         # Logo
         logo = self._create_logo()
@@ -164,42 +166,43 @@ class Window(QMainWindow):
         self._layout.addWidget(_label_m1_to, 1, 2, 1, 1)
         self._layout.addWidget(_label_m1_step, 1, 3, 1, 1)
         self._layout.addWidget(_label_m1, 2, 0, 1, 1)
-        self._layout.addWidget(_label_m2_from, 4, 1, 1, 1)
-        self._layout.addWidget(_label_m2_to, 4, 2, 1, 1)
-        self._layout.addWidget(_label_m2_step, 4, 3, 1, 1)
-        self._layout.addWidget(_label_m2, 5, 0, 1, 1)
-        self._layout.addWidget(_label_m3_from, 6, 1, 1, 1)
-        self._layout.addWidget(_label_m3_to, 6, 2, 1, 1)
-        self._layout.addWidget(_label_m3_step, 6, 3, 1, 1)
-        self._layout.addWidget(_label_m3, 7, 0, 1, 1)
-        self._layout.addWidget(_label_measurement_setup_title, 9, 0, 1, 1)
-        self._layout.addWidget(_label_measurement_num, 10, 0, 1, 1)
-        self._layout.addWidget(_label_measurement_n, 10, 2, 1, 1)
-        self._layout.addWidget(_label_home_title, 12, 0, 1, 1)
-        self._layout.addWidget(_label_time_to_finish_title, 12, 3, 1, 1)
-        self._layout.addWidget(self._label_time_to_finish_value, 12, 4, 1, 1)
+        self._layout.addWidget(_label_m2_from, 3, 1, 1, 1)
+        self._layout.addWidget(_label_m2_to, 3, 2, 1, 1)
+        self._layout.addWidget(_label_m2_step, 3, 3, 1, 1)
+        self._layout.addWidget(_label_m2, 4, 0, 1, 1)
+        self._layout.addWidget(_label_m3_from, 5, 1, 1, 1)
+        self._layout.addWidget(_label_m3_to, 5, 2, 1, 1)
+        self._layout.addWidget(_label_m3_step, 5, 3, 1, 1)
+        self._layout.addWidget(_label_m3, 6, 0, 1, 1)
+        self._layout.addWidget(_label_measurement_setup_title, 7, 0, 1, 1)
+        self._layout.addWidget(_label_measurement_num, 8, 1, 1, 1)
+        self._layout.addWidget(_label_measurement_n, 8, 3, 1, 1)
+        self._layout.addWidget(_label_scan_type, 9, 1, 1, 1)
+        self._layout.addWidget(_label_home_title, 13, 0, 1, 1)
+        self._layout.addWidget(_label_time_to_finish_title, 11, 1, 1, 1)
+        self._layout.addWidget(self._label_time_to_finish_value, 11, 2, 1, 1)
         self._layout.addWidget(self._m1_from_value, 2, 1, 1, 1)
         self._layout.addWidget(self._m1_to_value, 2, 2, 1, 1)
         self._layout.addWidget(self._m1_step_value, 2, 3, 1, 1)
-        self._layout.addWidget(self._m2_from_value, 5, 1, 1, 1)
-        self._layout.addWidget(self._m2_to_value, 5, 2, 1, 1)
-        self._layout.addWidget(self._m2_step_value, 5, 3, 1, 1)
-        self._layout.addWidget(self._m3_from_value, 7, 1, 1, 1)
-        self._layout.addWidget(self._m3_to_value, 7, 2, 1, 1)
-        self._layout.addWidget(self._m3_step_value, 7, 3, 1, 1)
-        self._layout.addWidget(self._measurement_points_value, 10, 1, 1, 1)
-        self._layout.addWidget(self._scan, 11, 3, 1, 1)
-        self._layout.addWidget(self._home1, 13, 1, 1, 1)
-        self._layout.addWidget(self._home2, 14, 1, 1, 1)
-        self._layout.addWidget(self._home3, 15, 1, 1, 1)
-        self._layout.addWidget(self._move_1_to, 13, 2, 1, 1)
-        self._layout.addWidget(self._move_2_to, 14, 2, 1, 1)
-        self._layout.addWidget(self._move_3_to, 15, 2, 1, 1)
-        self._layout.addWidget(self._progress_bar, 13, 3, 1, 2)
-        self._layout.addWidget(_label_url, 17, 4, 1, 1)
+        self._layout.addWidget(self._m2_from_value, 4, 1, 1, 1)
+        self._layout.addWidget(self._m2_to_value, 4, 2, 1, 1)
+        self._layout.addWidget(self._m2_step_value, 4, 3, 1, 1)
+        self._layout.addWidget(self._m3_from_value, 6, 1, 1, 1)
+        self._layout.addWidget(self._m3_to_value, 6, 2, 1, 1)
+        self._layout.addWidget(self._m3_step_value, 6, 3, 1, 1)
+        self._layout.addWidget(self._measurement_points_value, 8, 2, 1, 1)
+        self._layout.addWidget(self._scan, 10, 1, 1, 3)
+        self._layout.addWidget(self._home1, 14, 1, 1, 1)
+        self._layout.addWidget(self._home2, 14, 2, 1, 1)
+        self._layout.addWidget(self._home3, 14, 3, 1, 1)
+        self._layout.addWidget(self._move_1_to, 2, 4, 1, 1)
+        self._layout.addWidget(self._move_2_to, 4, 4, 1, 1)
+        self._layout.addWidget(self._move_3_to, 6, 4, 1, 1)
+        self._layout.addWidget(self._progress_bar, 12, 1, 1, 3)
+        self._layout.addWidget(_label_url, 15, 3, 1, 2)
         self._layout.addWidget(logo, 0, 4, 1, 2)
-        self._layout.addWidget(self._1d_measurement, 10, 4, 1, 1)
-        self._layout.addWidget(self._3d_measurement, 11, 4, 1, 1)
+        self._layout.addWidget(self._measurement_1d, 9, 2, 1, 1)
+        self._layout.addWidget(self._measurement_3d, 9, 3, 1, 1)
 
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
@@ -237,8 +240,11 @@ class Window(QMainWindow):
     # ------------------------------------------------------------------------------------------------------------------
 
     def _restrict_value_editing_for_1d_measurement(self):
-        self._3d_measurement.setChecked(False)
-        if self._1d_measurement.isChecked():
+        self._measurement_1d.setEnabled(False)
+        self._measurement_3d.setEnabled(True)
+        self._measurement_3d.setChecked(False)
+
+        if self._measurement_1d.isChecked():
             self._m1_to_value.setEnabled(False)
             self._m1_step_value.setEnabled(False)
             self._m2_to_value.setEnabled(False)
@@ -255,11 +261,15 @@ class Window(QMainWindow):
             self._m3_to_value.setEnabled(True)
 
     def _restrict_value_editing_for_3d_measurement(self):
-        self._1d_measurement.setChecked(False)
+        # Enable every widget
         widgets = self.get_window_widgets()
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(True)
+
+        self._measurement_3d.setEnabled(False)
+        self._measurement_1d.setEnabled(True)
+        self._measurement_1d.setChecked(False)
 
     def _update_layout_after_finished_scanning(self):
         self._progress_bar.setValue(0)
@@ -316,11 +326,11 @@ class Window(QMainWindow):
         self.worker.start()
 
     def start_scanning(self):
-        if self._1d_measurement.isChecked():
+        if self._measurement_1d.isChecked():
             self._scan_1d = True
             self._scan_3d = False
             print("1D measurement ON")
-        elif self._3d_measurement.isChecked():
+        elif self._measurement_3d.isChecked():
             self._scan_3d = False
             self._scan_3d = True
             print("3D measurement ON")
