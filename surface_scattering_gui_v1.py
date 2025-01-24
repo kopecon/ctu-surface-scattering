@@ -72,8 +72,8 @@ class Window(QMainWindow):
 
         # Measurement arguments:
         self._input_data = []
-        self._1d_scan = False
-        self._2d_scan = False
+        self._scan_1d = False
+        self._scan_3d = False
 
         # Thread variables
         self.worker = None
@@ -131,12 +131,16 @@ class Window(QMainWindow):
         self._home2 = self._push_button("Motor 2 Home")
         self._home3 = self._push_button("Motor 3 Home")
         self._move_1_to = self._push_button("Move 1 to")
+        self._move_2_to = self._push_button("Move 2 to")
+        self._move_3_to = self._push_button("Move 3 to")
         self._scan = self._push_button("Scan")
 
         self._home1.clicked.connect(lambda: self.start_homing(1))
         self._home2.clicked.connect(lambda: self.start_homing(2))
         self._home3.clicked.connect(lambda: self.start_homing(3))
         self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._m1_to_value.text())))
+        self._move_2_to.clicked.connect(lambda: self.move_to(1, float(self._m2_to_value.text())))
+        self._move_3_to.clicked.connect(lambda: self.move_to(1, float(self._m3_to_value.text())))
 
         self._scan.clicked.connect(lambda: self.start_scanning())
 
@@ -145,8 +149,11 @@ class Window(QMainWindow):
 
         # Checkbox
         self._1d_measurement = QCheckBox("1D Measurement", self)
+        self._3d_measurement = QCheckBox("3D Measurement", self)
         self._1d_measurement.setChecked(False)
+        self._3d_measurement.setChecked(True)
         self._1d_measurement.clicked.connect(self._restrict_value_editing_for_1d_measurement)
+        self._3d_measurement.clicked.connect(self._restrict_value_editing_for_3d_measurement)
 
         # Logo
         logo = self._create_logo()
@@ -186,10 +193,13 @@ class Window(QMainWindow):
         self._layout.addWidget(self._home2, 14, 1, 1, 1)
         self._layout.addWidget(self._home3, 15, 1, 1, 1)
         self._layout.addWidget(self._move_1_to, 13, 2, 1, 1)
+        self._layout.addWidget(self._move_2_to, 14, 2, 1, 1)
+        self._layout.addWidget(self._move_3_to, 15, 2, 1, 1)
         self._layout.addWidget(self._progress_bar, 13, 3, 1, 2)
         self._layout.addWidget(_label_url, 17, 4, 1, 1)
         self._layout.addWidget(logo, 0, 4, 1, 2)
-        self._layout.addWidget(self._1d_measurement, 11, 4, 1, 1)
+        self._layout.addWidget(self._1d_measurement, 10, 4, 1, 1)
+        self._layout.addWidget(self._3d_measurement, 11, 4, 1, 1)
 
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
@@ -227,6 +237,7 @@ class Window(QMainWindow):
     # ------------------------------------------------------------------------------------------------------------------
 
     def _restrict_value_editing_for_1d_measurement(self):
+        self._3d_measurement.setChecked(False)
         if self._1d_measurement.isChecked():
             self._m1_to_value.setEnabled(False)
             self._m1_step_value.setEnabled(False)
@@ -242,6 +253,13 @@ class Window(QMainWindow):
             self._m2_step_value.setEnabled(True)
             self._m3_from_value.setEnabled(True)
             self._m3_to_value.setEnabled(True)
+
+    def _restrict_value_editing_for_3d_measurement(self):
+        self._1d_measurement.setChecked(False)
+        widgets = self.get_window_widgets()
+        for widget in widgets:
+            if hasattr(widget, 'setEnabled'):
+                widget.setEnabled(True)
 
     def _update_layout_after_finished_scanning(self):
         self._progress_bar.setValue(0)
@@ -299,11 +317,13 @@ class Window(QMainWindow):
 
     def start_scanning(self):
         if self._1d_measurement.isChecked():
-            self._1d_scan = True
+            self._scan_1d = True
+            self._scan_3d = False
             print("1D measurement ON")
-        else:
-            self._1d_scan = False
-            print("1D measurement OFF")
+        elif self._3d_measurement.isChecked():
+            self._scan_3d = False
+            self._scan_3d = True
+            print("3D measurement ON")
 
         self._input_data = [
             self._m1_from_value.text(),
@@ -316,10 +336,10 @@ class Window(QMainWindow):
             self._m3_to_value.text(),
             self._m3_step_value.text(),
             self._measurement_points_value.text(),
-            self._1d_scan]
+            self._scan_1d]
 
         print("Input Data: ", self._input_data)
-        self.worker = ScanningThread(self._input_data)
+        self.worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
         self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
         self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
         self.worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
@@ -366,16 +386,18 @@ class ScanningThread(QThread):
     on_progress = Signal(int)
     on_progress2 = Signal(float)
 
-    def __init__(self, input_data):
+    def __init__(self, scan_1d, scan_3d, input_data):
         super().__init__()
+        self.scan_1d = scan_1d
+        self.scan_3d = scan_3d
         self.input_data = input_data
         controller.connect()
 
     def run(self) -> None:
-        if self.input_data[10] == 1:
+        if self.scan_1d:
             print("1D scanning.")
             controller.scanning_1d(self.input_data, self.on_progress, self.on_progress2)
-        else:
+        elif self.scan_3d:
             print("3D scanning.")
             controller.scanning_3d(self.input_data, self.on_progress, self.on_progress2)
 
