@@ -136,6 +136,8 @@ class Window(QMainWindow):
         self._move_2_to = self._push_button("Move")
         self._move_3_to = self._push_button("Move")
         self._scan = self._push_button("Scan")
+        self._stop = self._push_button("STOP")
+        self._test_button = self._push_button("Test")
 
         self._home1.clicked.connect(lambda: self.start_homing(1))
         self._home2.clicked.connect(lambda: self.start_homing(2))
@@ -146,8 +148,9 @@ class Window(QMainWindow):
         self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._m1_to_value.text())))
         self._move_2_to.clicked.connect(lambda: self.move_to(1, float(self._m2_to_value.text())))
         self._move_3_to.clicked.connect(lambda: self.move_to(1, float(self._m3_to_value.text())))
-
+        self._stop.clicked.connect(lambda: self.stop_motors())
         self._scan.clicked.connect(lambda: self.start_scanning())
+        self._test_button.clicked.connect(lambda: self.test_function())
 
         # Progress bar
         self._progress_bar = self._progress_bar(0)
@@ -196,6 +199,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._m3_step_value, 6, 3, 1, 1)
         self._layout.addWidget(self._measurement_points_value, 8, 2, 1, 1)
         self._layout.addWidget(self._scan, 10, 1, 1, 3)
+        self._layout.addWidget(self._test_button, 0, 1, 1, 1)
         self._layout.addWidget(self._home1, 14, 1, 1, 1)
         self._layout.addWidget(self._home2, 14, 2, 1, 1)
         self._layout.addWidget(self._home3, 14, 3, 1, 1)
@@ -203,6 +207,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._move_1_to, 2, 4, 1, 1)
         self._layout.addWidget(self._move_2_to, 4, 4, 1, 1)
         self._layout.addWidget(self._move_3_to, 6, 4, 1, 1)
+        self._layout.addWidget(self._stop, 0, 3, 1, 1)
         self._layout.addWidget(self._progress_bar, 12, 1, 1, 3)
         self._layout.addWidget(_label_url, 16, 3, 1, 2)
         self._layout.addWidget(logo, 0, 4, 1, 2)
@@ -242,8 +247,8 @@ class Window(QMainWindow):
         logo.setAlignment(Qt.AlignmentFlag.AlignRight)
         logo.setPixmap(logo_png)
         return logo
-    # ------------------------------------------------------------------------------------------------------------------
 
+    # -----------------------------------------------------------------------------------------------    Widget handling
     def _restrict_value_editing_for_1d_measurement(self):
         self._measurement_1d.setEnabled(False)
         self._measurement_3d.setEnabled(True)
@@ -278,9 +283,16 @@ class Window(QMainWindow):
 
     def _update_layout_after_finished_scanning(self):
         self._progress_bar.setValue(0)
-        self._home1.setEnabled(True)
-        self._home2.setEnabled(True)
-        self._home3.setEnabled(True)
+        # Enable every widget
+        widgets = self.get_window_widgets()
+        for widget in widgets:
+            if hasattr(widget, 'setEnabled'):
+                widget.setEnabled(True)
+
+        self._measurement_1d.setEnabled(True)
+        self._measurement_1d.setChecked(False)
+        self._measurement_3d.setEnabled(False)
+        self._measurement_3d.setChecked(True)
 
     def _update_progress_bar(self, n):
         self._progress_bar.setValue(n)
@@ -306,6 +318,7 @@ class Window(QMainWindow):
             all_window_widgets.append(widget)
         return all_window_widgets
 
+    #  ---------------------------------------------------------------------------------------    Motor moving functions
     def start_homing(self, motor_id):
         self.worker = HomingThread(motor_id)
         self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
@@ -365,6 +378,13 @@ class Window(QMainWindow):
         self._scan.setEnabled(False)
 
         self.worker.start()
+
+    @staticmethod
+    def stop_motors():
+        controller.stop_motors()
+
+    def test_function(self):
+        print(f"test function {self._scan_1d}")
 
 
 # Threads for moving the motors:

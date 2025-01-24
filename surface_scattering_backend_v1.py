@@ -92,6 +92,10 @@ class Motor:
         self._wait(1)  # TODO find if necessary
         self._stop_polling()
 
+    def stop(self):
+        # TODO: check if stop_immediate(self, channel) is better
+        self._controller.stop_profiled(self.motor_id)
+
 
 # Class representing the motor controller hardware
 class MotorController:
@@ -158,6 +162,14 @@ class MotorController:
 
     def scanning_3d(self, input_data, on_progress, on_progress2):
         scan_3d(self.motors, input_data, on_progress, on_progress2)
+
+    def stop_motors(self):
+        print("Stopping motors!")
+        for motor in self.motors:
+            if isinstance(motor, Motor):
+                print(f"    Stopping motor: {motor}")
+                motor.stop()
+                print(f"    {motor} stopped.")
 
 
 # Define motor controller object based on the hardware in the lab:
