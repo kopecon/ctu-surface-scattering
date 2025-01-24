@@ -15,32 +15,38 @@ from PySide6.QtWidgets import (
 import sys
 from datetime import timedelta
 
-# Custom packages from this project
+# Custom modules:
 import surface_scattering_backend_v1
 
 print("Library import done.")
 
 """
-surface_scattering_gui.py: The main file that is meant to be executed. Builds a GUI to interact with the lab measurement
-device.
+The surface scattering measuring project consists of 3 files:
 
-surface_scattering_backend.py: Provides the calculations and access and usage code for the hardware.  
+    surface_scattering_gui.py: The main file that is meant to be executed. Builds a GUI to interact with the lab
+        measurement device.
 
+    surface_scattering_backend.py: Provides access and control of the hardware.  
+    
+    surface_scattering_scan.py: Provides the scan calculations and output file storing
 
+Hardware:
+    Controller: https://www.thorlabs.com/thorproduct.cfm?partnumber=BSC203
+    Motors: https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1064
 
-Controller: https://www.thorlabs.com/thorproduct.cfm?partnumber=BSC203
-Motors: https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1064
-Thorlabs Kinesis needs to be installed on the device executing this python script and correct motors have to be
-set up in the Thorlabs Kinesis user interface.
-Kinesis user interface has to be closed during this program run, or the controller fails to connect.
+Dependent Software:
+    "Thorlabs Kinesis" needs to be installed on the device which is to be executing this python script.
+    Correct motors have to be set up in the Thorlabs Kinesis user interface.
+    Kinesis user interface has to be closed while this program is running, or the controller fails to connect.
 """
 # TODO: Check if homing can be activated for each motor at the same time (do we need to disable homing buttons?)
+
 
 controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
 
 
 def days_hours_minutes_seconds(dt):
-    # TODO: Refactor this into readable code
+    # TODO: Refactor this into more readable code
     return (
         dt.days,  # days
         dt.seconds // 3600,  # hours
@@ -57,12 +63,13 @@ class Window(QMainWindow):
         self._layout = QGridLayout()
         _central_widget.setLayout(self._layout)
 
-        self.setWindowTitle("Thorlab 3 Wheel")
+        self.setWindowTitle("Surface Scattering Measurement")
         self.setFixedSize(QSize(600, 600))
 
         # Measurement arguments:
         self._input_data = []
-        self._1d_scan = 0
+        self._1d_scan = False
+        self._2d_scan = False
 
         # Thread variables
         self.worker = None
@@ -288,10 +295,10 @@ class Window(QMainWindow):
 
     def start_scanning(self):
         if self._1d_measurement.isChecked():
-            self._1d_scan = 1
+            self._1d_scan = True
             print("1D measurement ON")
         else:
-            self._1d_scan = 0
+            self._1d_scan = False
             print("1D measurement OFF")
 
         self._input_data = [
