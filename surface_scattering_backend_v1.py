@@ -68,8 +68,6 @@ class Motor:
 
             print("Initial position:")
             self.get_position()
-            print("Homing parameters:")
-            print(self._controller.is_calibration_active(self.motor_id))
             # TODO Add limit checking and direction change based on position
             self._controller.home(self.motor_id)
             print(f"Homing motor {self.motor_id}...")
@@ -83,8 +81,9 @@ class Motor:
     # ------------------------------------------------------------------------------------------------------------------
 
     def move_to_position(self, position):
+        # 90 deg in GUI = 360 - 90 in motor angles. The motor rotates anticlockwise.
         anti_clockwise_rotation = 360 - position
-        position = anti_clockwise_rotation
+        position = anti_clockwise_rotation  # TODO: find if there is a better way
         self._load_settings()
         time.sleep(1)  # TODO find if necessary
         self._start_polling()
@@ -149,7 +148,6 @@ class MotorController:
             self.motor_2 = self.motors[2]
             self.motor_3 = self.motors[3]
             print("Connection done.")
-
         except OSError:
             print("No devices found.")
 
