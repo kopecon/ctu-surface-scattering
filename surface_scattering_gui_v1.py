@@ -1,5 +1,5 @@
-from PySide6.QtGui import QPixmap
-from PySide6.QtCore import QSize, Qt, QThread, Signal
+from PySide6.QtGui import QPixmap, QKeyEvent
+from PySide6.QtCore import QSize, Qt, QThread, QThreadPool, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 
 import sys
+from threading import active_count
 from datetime import timedelta
 
 # Custom modules:
@@ -76,7 +77,8 @@ class Window(QMainWindow):
         self._scan_3d = False
 
         # Thread variables
-        self.worker = None
+        self.worker = QThread()
+        self._thread_pool = QThreadPool()
 
         # Labels
         _label_motor_setup_title = self._label("Motors Setup:")
@@ -318,6 +320,12 @@ class Window(QMainWindow):
             all_window_widgets.append(widget)
         return all_window_widgets
 
+    def keyPressEvent(self, event):
+        # For safety reasons, if any motor is moving and any key is pressed, all the motors stop.
+        # Does not work with "SpaceBar" key.
+        if isinstance(event, QKeyEvent) and self.worker.isRunning():
+            self.stop_motors()
+
     #  ---------------------------------------------------------------------------------------    Motor moving functions
     def start_homing(self, motor_id):
         self.worker = HomingThread(motor_id)
@@ -382,6 +390,8 @@ class Window(QMainWindow):
     @staticmethod
     def stop_motors():
         controller.stop_motors()
+        if hasattr(controller, 'disconnect()'):
+            controller.disconnect()
 
     def test_function(self):
         print(f"test function {self._scan_1d}")
