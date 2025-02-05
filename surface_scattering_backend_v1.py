@@ -152,10 +152,7 @@ class MotorController:
             print("No devices found.")
 
     def disconnect(self):
-        if self.connectedController:
-            self.connectedController.disconnect()
-        else:
-            print("Unable to disconnect. controller is not connected.")
+        self.connectedController.disconnect()
 
     def scanning_1d(self, input_data, on_progress, on_progress2):
         scan_1d(self.motors, input_data, on_progress, on_progress2)
@@ -167,9 +164,9 @@ class MotorController:
         print("Stopping motors!")
         for motor in self.motors:
             if isinstance(motor, Motor):
-                print(f"    Stopping motor: {motor}")
+                print(f"    Stopping motor: {motor.motor_id}")
                 motor.stop()
-                print(f"    {motor} stopped.")
+                print(f"    {motor.motor_id} stopped.")
 
 
 # Define motor controller object based on the hardware in the lab:
