@@ -83,6 +83,8 @@ class Motor:
     # ------------------------------------------------------------------------------------------------------------------
 
     def move_to_position(self, position):
+        anti_clockwise_rotation = 360 - position
+        position = anti_clockwise_rotation
         self._load_settings()
         time.sleep(1)  # TODO find if necessary
         self._start_polling()
