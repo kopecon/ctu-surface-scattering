@@ -13,7 +13,6 @@ from PySide6.QtWidgets import (
 )
 
 import sys
-from threading import active_count
 from datetime import timedelta
 
 # Custom modules:
@@ -345,9 +344,6 @@ class Window(QMainWindow):
         self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
 
         print("Activated motor:", motor_id)
-        self._home1.setEnabled(False)
-        self._home2.setEnabled(False)
-        self._home3.setEnabled(False)
 
         self.worker.start()
 
