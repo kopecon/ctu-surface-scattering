@@ -400,7 +400,7 @@ class HomingThread(QThread):
         self._active_motor = controller.motors[motor_id]
 
     def run(self) -> None:
-        self._active_motor.home()
+        self._active_motor.home(velocity=10)
         controller.disconnect()
         print("Controller disconnected.")
 
