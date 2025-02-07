@@ -79,7 +79,7 @@ class Window(QMainWindow):
         self._scan_3d = False
 
         # Thread variables
-        self.worker = QThread()
+        self.workers = []
         self._thread_pool = QThreadPool()
 
         # Labels
@@ -325,27 +325,23 @@ class Window(QMainWindow):
     def keyPressEvent(self, event):
         # For safety reasons, if any motor is moving and any key is pressed, all the motors stop.
         # Does not work with "SpaceBar" key.
-        if isinstance(event, QKeyEvent) and self.worker.isRunning():
+        if isinstance(event, QKeyEvent) and any(worker.isRunning() for worker in self.workers):
             self.stop_motors()
 
     #  ---------------------------------------------------------------------------------------    Motor moving functions
     def start_homing(self, motor_id):
-        self.worker = HomingThread(motor_id)
-        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
-        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
-
+        worker = HomingThread(motor_id)
+        self.workers.append(worker)
         print("Activated motor:", motor_id)
 
-        self.worker.start()
+        worker.start()
 
     def move_to(self, motor_id, position):
-        self.worker = MovingThread(motor_id, position)
-        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
-        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
-
+        worker = MovingThread(motor_id, position)
+        self.workers.append(worker)  # Associating the worker with the object prevents crashing
         print("Activated motor:", motor_id)
 
-        self.worker.start()
+        worker.start()
 
     def start_scanning(self):
         if self._measurement_1d.isChecked():
@@ -371,17 +367,18 @@ class Window(QMainWindow):
             self._scan_1d]
 
         print("Input Data: ", self._input_data)
-        self.worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
-        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
-        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
-        self.worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
+        worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
+        self.workers.append(worker)
+        worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
+        worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
+        worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
 
         self._home1.setEnabled(False)
         self._home2.setEnabled(False)
         self._home3.setEnabled(False)
         self._scan.setEnabled(False)
 
-        self.worker.start()
+        worker.start()
 
     @staticmethod
     def stop_motors():
@@ -401,6 +398,7 @@ class Window(QMainWindow):
 
 # Threads for moving the motors:
 class HomingThread(QThread):
+    # FIXME: Homing more motors at once is crashing, but moving them is ok
     on_progress = Signal(int)
 
     def __init__(self, motor_id):
