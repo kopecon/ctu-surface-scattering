@@ -12,13 +12,97 @@ from msl.equipment.resources.thorlabs import MotionControl
 from _surface_scattering_scan import scan_1d, scan_3d
 
 
+# Class representing the motor controller hardware
+class MotorController:
+    def __init__(self, manufacturer: str, model: str, serial: str, address: str, backend: Backend):
+        # ensure that the Kinesis folder is available on PATH
+        os.environ["PATH"] += os.pathsep + "C:/Program Files/Thorlabs/Kinesis"
+
+        # Model parameters
+        self._manufacturer = manufacturer
+        self._model = model
+        self._serial = serial
+        self._address = address
+        self._backend = backend
+        self._record = EquipmentRecord(
+            manufacturer=self._manufacturer, model=self._model,  # update for your device
+            serial=self._serial,  # update for your device
+            connection=ConnectionRecord(address=self._address, backend=self._backend))
+        self.connectedController = None
+        self.channels = []  # List of available channels
+        self.motors = [None]  # List of available motors - motors are indexed from 1, so let 0 index be None, so the
+        # first motor is on the index=1
+
+        # But we know there are 3 motors in our setup, so we add a variable for each motor
+        self.motor_1 = None
+        self.motor_2 = None
+        self.motor_3 = None
+
+    # This function is crashing the code if no device is plugged in via USB
+    def connect(self):
+        try:
+            MotionControl.build_device_list()  # Collect closed devices connected by USB
+            print("Device list built successfully.")
+
+            self.connectedController = self._record.connect()
+            print("Record set up successfully.")
+            time.sleep(1)  # Leave some time for connection to establish correctly
+
+            self.channels = list(
+                range(0, self.connectedController.max_channel_count()))  # Scan how many channels are on the device
+            print("Identifying motors...")
+            self.motors = [None]  # Erase previously loaded motors
+            # Create list of available motors
+            for i, chanel in enumerate(self.channels):
+                # i starts indexing from 0 but motor ID starts from 1 => i+1
+                self.motors.append(_Motor(self, motor_id=i + 1))
+                print(f"    Motor {i + 1} identified.")
+
+            # Assign variable for each motor separately
+            self.motor_1 = self.motors[1]
+            self.motor_2 = self.motors[2]
+            self.motor_3 = self.motors[3]
+            print("Connection done.")
+            self.motor_1.hardware_limits = (270, 90)
+            self.motor_2.hardware_limits = (0, 360)
+            self.motor_3.hardware_limits = (270, 90)
+            self.motor_1.load_settings()
+            self.motor_2.load_settings()
+            self.motor_3.load_settings()
+            return 0  # Successful
+        except OSError:
+            print("No devices found.")
+            return 1  # Error
+
+    def disconnect(self):
+        self.connectedController.disconnect()
+        # To make sure the serial communication is handled properly
+        time.sleep(1)
+        print("Controller disconnected.")
+
+    def scanning_1d(self, input_data, on_progress, on_progress2):
+        scan_1d(self.motors, input_data, on_progress, on_progress2)
+
+    def scanning_3d(self, input_data, on_progress, on_progress2):
+        scan_3d(self.motors, input_data, on_progress, on_progress2)
+
+    def stop_motors(self):
+        print("Stopping motors!")
+        for motor in self.motors:
+            if isinstance(motor, _Motor):
+                print(f"    Stopping motor: {motor.motor_id}")
+                motor.stop()
+                print(f"    {motor.motor_id} stopped.")
+
+
 # Class representing the motor hardware.
 # Is not intended to work independently, but is instanced by the "connect()" method in MotorController class.
 class _Motor:
-    def __init__(self, parent, motor_id, polling_rate=200):
+    def __init__(self, parent: MotorController, motor_id: int, polling_rate=200, hardware_limits=(270, 90)):
         self.motor_id = motor_id
-        self._parent = parent
+        self._parent = parent  # MotorController class instance
         self._polling_rate = polling_rate
+        self.hardware_limits = hardware_limits  # Max angle of rotation in degrees
         self._controller = parent.connectedController
         self.settings_loaded = False
 
@@ -30,10 +114,11 @@ class _Motor:
         message_type, message_id, _ = self._controller.wait_for_message(self.motor_id)
         while message_type != 2 or message_id != value:
             position = self.get_position()
-            print(f"At position {position[0]} [device units] {position[1]} [real-world units]")
+            print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
             message_type, message_id, _ = self._controller.wait_for_message(self.motor_id)
         else:
-            print("Different message: ", message_id, message_type, _)
+            # print("Different message: ", message_id, message_type, _)
+            pass
 
     def load_settings(self):
         self._controller.load_settings(self.motor_id)
@@ -88,26 +173,37 @@ class _Motor:
                                                                          'DISTANCE')
         return min_angle_r_u, max_angle_r_u
 
-    def get_location(self, left_limit=270, right_limit=90):
-        # TODO find illegal positions for each motor independently
-        _, position_r_u = self.get_position()
+    def get_location_quadrant(self, target_location=None):
+        # Checks in which quadrant is the motor arm located and returns the name of the quadrant in integer 0~4.
+        # Or check in which quadrant is the target location located.
+        position_r_u = target_location if target_location is not None else self.get_position()[1]
         if position_r_u == 0:
             # Home
             return 0
-        if 0 < position_r_u < right_limit:
+        if 0 < position_r_u < 90:
             # First quadrant
             return 1
-        if left_limit < position_r_u < 360:
+        if 270 < position_r_u < 360:
             # Second quadrant
             return 2
-        if 180 < position_r_u <= left_limit:
-            # Third quadrant
-            return 3
-        if right_limit <= position_r_u <= 180:
+        if 180 < position_r_u <= 270:
             # Fourth quadrant
+            return 3
+        if 90 <= position_r_u <= 180:
+            # Third quadrant
             return 4
         else:
             return None
+
+    def check_for_illegal_position(self, target_position):
+        target_position = target_position[1]
+        left_limit = self.hardware_limits[0]
+        right_limit = self.hardware_limits[1]
+        print(f'{left_limit} < {target_position} < {right_limit}')
+        if left_limit > target_position > 360 or 0 < target_position < right_limit:
+            return False
+        else:
+            return True
 
     # --------------------------------------------------------------------------------------    Setting Motor Parameters
     #  All parameters can be set only after "load_settings()" has been called or gets overwritten
@@ -183,135 +279,54 @@ class _Motor:
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
     def fix_illegal_position(self):
-        current_location = self.get_location()
+        current_location = self.get_location_quadrant()
         if current_location == 3:
             self.move_to_position(275)
         elif current_location == 4:
             self.move_to_position(85)
 
     def home(self, velocity):
-        # FIXME: Motors are not homing to 0.0 or reading wrong value
-        if self._parent is not None:
-            location = self.get_location(240, 120)
-            if location == 0:
-                pass
-            elif location == 1:
-                self.move_to_position(355)
-                self._set_backwards_homing(velocity)
-            elif location == 2:
-                self.move_to_position(5)
-                self._set_forward_homing(velocity)
-            else:
-                print(location, "ERROR: Wrong location to home")
-                return
-            self._start_polling(rate=self._polling_rate)
+        quadrant = self.get_location_quadrant()
 
-            print("Initial position:")
-            self.get_position()
-            # TODO Add limit checking and direction change based on position
-            self._controller.home(self.motor_id)
-            print(f"Homing motor {self.motor_id}...")
-            self._wait(0)
-            self.get_position()
-            self._stop_polling()
-            print(f"Motor {self.motor_id} is homed")
-        else:
-            print("Not connected to controller.")
+        if self.motor_id != 2:
+            if quadrant == 0:
+                pass
+            elif quadrant == 1 or quadrant == 4:
+                self.move_to_position(10)
+                self._set_backwards_homing(velocity)
+            elif quadrant == 2 or quadrant == 3:
+                self.move_to_position(350)
+                self._set_forward_homing(velocity)
+
+        elif self.motor_id == 2:
+            self.move_to_position(10)
+            self._set_backwards_homing()
+
+        self._start_polling(rate=self._polling_rate)
+
+        self._controller.home(self.motor_id)
+        print(f"Homing motor {self.motor_id}...")
+        self._wait(0)
+        time.sleep(1)
+        position = self.get_position()
+        print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
+        print(f"Motor {self.motor_id} successfully homed")
+        self._stop_polling()
 
     def move_to_position(self, position):
-
         self._start_polling()
         position_in_device_unit = self._controller.get_device_unit_from_real_value(self.motor_id, position, "DISTANCE")
-        # TODO Add limit checking and direction change based on position
+
         self._controller.move_to_position(self.motor_id, position_in_device_unit)
         self._wait(1)
         self._stop_polling()
+        print("In illegal zone:", self.check_for_illegal_position(self.get_position()))
 
     def stop(self):
         # stop_immediate(self, channel)  might be another option but following version works so far.
         # Based on documentation, stop_profiled is a controlled and safe way of stopping.
         # stop_immediate could lead to losing correct position reading, but probably would be faster.
         self._controller.stop_profiled(self.motor_id)
-
-
-# Class representing the motor controller hardware
-class MotorController:
-    def __init__(self, manufacturer: str, model: str, serial: str, address: str, backend: Backend):
-        # ensure that the Kinesis folder is available on PATH
-        os.environ["PATH"] += os.pathsep + "C:/Program Files/Thorlabs/Kinesis"
-
-        # Model parameters
-        self._manufacturer = manufacturer
-        self._model = model
-        self._serial = serial
-        self._address = address
-        self._backend = backend
-        self._record = EquipmentRecord(
-            manufacturer=self._manufacturer, model=self._model,  # update for your device
-            serial=self._serial,  # update for your device
-            connection=ConnectionRecord(address=self._address, backend=self._backend))
-        self.connectedController = None
-        self.channels = []  # List of available channels
-        self.motors = [None]  # List of available motors - motors are indexed from 1, so let 0 index be None, so the
-        # first motor is on the index=1
-
-        # But we know there are 3 motors in our setup, so we add a variable for each motor
-        self.motor_1 = None
-        self.motor_2 = None
-        self.motor_3 = None
-
-    # This function is crashing the code if no device is plugged in via USB
-    def connect(self):
-        try:
-            MotionControl.build_device_list()  # Collect closed devices connected by USB
-            print("Device list built successfully.")
-
-            self.connectedController = self._record.connect()
-            print("Record set up successfully.")
-            time.sleep(1)  # Leave some time for connection to establish correctly
-
-            self.channels = list(
-                range(0, self.connectedController.max_channel_count()))  # Scan how many channels are on the device
-            print("Identifying motors...")
-            self.motors = [None]  # Erase previously loaded motors
-            # Create list of available motors
-            for i, chanel in enumerate(self.channels):
-                self.motors.append(_Motor(self, i + 1))  # i starts indexing from 0 but motor ID starts from 1 => i+1
-                print(f"    Motor {i + 1} identified.")
-
-            # TODO fix motor assignment when no channels found
-            # Assign variable for each motor separately
-            self.motor_1 = self.motors[1]
-            self.motor_2 = self.motors[2]
-            self.motor_3 = self.motors[3]
-            print("Connection done.")
-            self.motor_1.load_settings()
-            self.motor_2.load_settings()
-            self.motor_3.load_settings()
-            return 0  # Successful
-        except OSError:
-            print("No devices found.")
-            return 1  # Error
-
-    def disconnect(self):
-        self.connectedController.disconnect()
-        # To make sure the serial communication is handled properly
-        time.sleep(1)
-        print("Controller disconnected.")
-
-    def scanning_1d(self, input_data, on_progress, on_progress2):
-        scan_1d(self.motors, input_data, on_progress, on_progress2)
-
-    def scanning_3d(self, input_data, on_progress, on_progress2):
-        scan_3d(self.motors, input_data, on_progress, on_progress2)
-
-    def stop_motors(self):
-        print("Stopping motors!")
-        for motor in self.motors:
-            if isinstance(motor, _Motor):
-                print(f"    Stopping motor: {motor.motor_id}")
-                motor.stop()
-                print(f"    {motor.motor_id} stopped.")
 
 
 # Define motor controller object based on the hardware in the lab:
