@@ -12,15 +12,15 @@ from msl.equipment.resources.thorlabs import MotionControl
 from _surface_scattering_scan import scan_1d, scan_3d
 
 
-# Class representing the motor hardware
-class Motor:
+# Class representing the motor hardware.
+# Is not intended to work independently, but is instanced by the "connect()" method in MotorController class.
+class _Motor:
     def __init__(self, parent, motor_id, polling_rate=200):
         self.motor_id = motor_id
         self._parent = parent
-        self._position_device_unit = None
-        self._position_real_unit = None
         self._polling_rate = polling_rate
         self._controller = parent.connectedController
+        self.settings_loaded = False
 
     # -----------------------------------------------------------------------------------   Motor Information collecting
     def _wait(self, value: int):
@@ -35,43 +35,38 @@ class Motor:
         else:
             print("Different message: ", message_id, message_type, _)
 
-    def _load_settings(self):
-        if self._parent is not None:
-            self._controller.load_settings(self.motor_id)
-            # the SBC_Open(serialNo) function in Kinesis is non-blocking, and therefore we
-            # should add a delay for Kinesis to establish communication with the serial port
-            time.sleep(1)
-            print("Motor setting loaded.")
-        else:
-            print("Not connected to controller.")
+    def load_settings(self):
+        self._controller.load_settings(self.motor_id)
+        # the SBC_Open(serialNo) function in Kinesis is non-blocking, and therefore we
+        # should add a delay for Kinesis to establish communication with the serial port
+        time.sleep(1)
+        self.settings_loaded = True
+        print(f"Motor {self.motor_id} setting loaded.")
 
     def _start_polling(self, rate=200):
-        if self._parent is not None:
-            self._controller.start_polling(self.motor_id, rate)
-            print("Polling started...")
-        else:
-            print("Not connected to controller.")
+        self._controller.start_polling(self.motor_id, rate)
 
     def _stop_polling(self):
-        if self._parent is not None:
-            self._controller.stop_polling(self.motor_id)
-            print("Polling stopped.")
-        else:
-            print("Not connected to controller.")
+        self._controller.stop_polling(self.motor_id)
 
     def get_position(self):
-        self._position_device_unit = self._controller.get_position(self.motor_id)
-        self._position_real_unit = self._controller.get_real_value_from_device_unit(
-            self.motor_id, self._position_device_unit, "DISTANCE")
-        return self._position_device_unit, self._position_real_unit
+        if self.settings_loaded:
+            position_device_unit = self._controller.get_position(self.motor_id)
+            position_real_unit = self._controller.get_real_value_from_device_unit(
+                self.motor_id, position_device_unit, "DISTANCE")
+            return position_device_unit, position_real_unit
+        else:
+            return print("Settings need to be loaded first.")
 
     def get_homing_velocity(self):
-        # Call only after "load_settings()"
-        velocity_device_units = self._controller.get_homing_velocity(self.motor_id)
-        velocity_real_units = self._controller.get_real_value_from_device_unit(self.motor_id,
-                                                                               velocity_device_units,
-                                                                               "VELOCITY")
-        return velocity_real_units, velocity_device_units
+        if self.settings_loaded:
+            velocity_device_units = self._controller.get_homing_velocity(self.motor_id)
+            velocity_real_units = self._controller.get_real_value_from_device_unit(self.motor_id,
+                                                                                   velocity_device_units,
+                                                                                   "VELOCITY")
+            return velocity_real_units, velocity_device_units
+        else:
+            return print("Settings need to be loaded first.")
 
     def get_limit_approach_policy(self):
         # DisallowIllegalMoves = 0
@@ -157,22 +152,34 @@ class Motor:
         #   1 ... forward
         #   2 ... reverse
         # Does not affect homing directions
-        self._controller.set_rotation_modes(self.motor_id, mode, direction)
+        if self.settings_loaded:
+            self._controller.set_rotation_modes(self.motor_id, mode, direction)
+        else:
+            return print("Settings need to be loaded first.")
 
     def set_homing_parameters(self, direction, limit, velocity, offset):
         # direction: int ...
-        velocity_device_units = self._controller.get_device_unit_from_real_value(self.motor_id, velocity, "VELOCITY")
-        offset_device_units = self._controller.get_device_unit_from_real_value(self.motor_id, offset, "DISTANCE")
-        self._controller.set_homing_params_block(
-            self.motor_id, direction, limit, velocity_device_units, offset_device_units)
+        if self.settings_loaded:
+            velocity_device_units = self._controller.get_device_unit_from_real_value(self.motor_id, velocity, "VELOCITY")
+            offset_device_units = self._controller.get_device_unit_from_real_value(self.motor_id, offset, "DISTANCE")
+            self._controller.set_homing_params_block(
+                self.motor_id, direction, limit, velocity_device_units, offset_device_units)
+        else:
+            return print("Settings need to be loaded first.")
 
     def _set_forward_homing(self, velocity=6):
         # TODO: Calibrate offset
-        self.set_homing_parameters(1, 1, velocity, -6.5)
+        if self.settings_loaded:
+            self.set_homing_parameters(1, 1, velocity, -6.5)
+        else:
+            return print("Settings need to be loaded first.")
 
     def _set_backwards_homing(self, velocity=6):
         # TODO: Calibrate offset
-        self.set_homing_parameters(2, 1, velocity, 3)
+        if self.settings_loaded:
+            self.set_homing_parameters(2, 1, velocity, 3)
+        else:
+            return print("Settings need to be loaded first.")
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
     def fix_illegal_position(self):
@@ -183,8 +190,8 @@ class Motor:
             self.move_to_position(85)
 
     def home(self, velocity):
+        # FIXME: Motors are not homing to 0.0 or reading wrong value
         if self._parent is not None:
-            self._load_settings()
             location = self.get_location(240, 120)
             if location == 0:
                 pass
@@ -207,16 +214,11 @@ class Motor:
             self._wait(0)
             self.get_position()
             self._stop_polling()
-            print(f"Finishing homing motor {self.motor_id}...")
+            print(f"Motor {self.motor_id} is homed")
         else:
             print("Not connected to controller.")
 
     def move_to_position(self, position):
-        # 90 deg in GUI = 360 - 90 in motor angles. The motor rotates anticlockwise.
-        anti_clockwise_rotation = 360 - position
-        position = anti_clockwise_rotation  # TODO: find if there is a better way
-
-        self._load_settings()
 
         self._start_polling()
         position_in_device_unit = self._controller.get_device_unit_from_real_value(self.motor_id, position, "DISTANCE")
@@ -261,11 +263,12 @@ class MotorController:
     # This function is crashing the code if no device is plugged in via USB
     def connect(self):
         try:
-            MotionControl.build_device_list()
+            MotionControl.build_device_list()  # Collect closed devices connected by USB
             print("Device list built successfully.")
 
             self.connectedController = self._record.connect()
             print("Record set up successfully.")
+            time.sleep(1)  # Leave some time for connection to establish correctly
 
             self.channels = list(
                 range(0, self.connectedController.max_channel_count()))  # Scan how many channels are on the device
@@ -273,7 +276,7 @@ class MotorController:
             self.motors = [None]  # Erase previously loaded motors
             # Create list of available motors
             for i, chanel in enumerate(self.channels):
-                self.motors.append(Motor(self, i + 1))  # i starts indexing from 0 but motor ID starts from 1 => i+1
+                self.motors.append(_Motor(self, i + 1))  # i starts indexing from 0 but motor ID starts from 1 => i+1
                 print(f"    Motor {i + 1} identified.")
 
             # TODO fix motor assignment when no channels found
@@ -282,13 +285,19 @@ class MotorController:
             self.motor_2 = self.motors[2]
             self.motor_3 = self.motors[3]
             print("Connection done.")
+            self.motor_1.load_settings()
+            self.motor_2.load_settings()
+            self.motor_3.load_settings()
+            return 0  # Successful
         except OSError:
             print("No devices found.")
+            return 1  # Error
 
     def disconnect(self):
         self.connectedController.disconnect()
         # To make sure the serial communication is handled properly
         time.sleep(1)
+        print("Controller disconnected.")
 
     def scanning_1d(self, input_data, on_progress, on_progress2):
         scan_1d(self.motors, input_data, on_progress, on_progress2)
@@ -299,7 +308,7 @@ class MotorController:
     def stop_motors(self):
         print("Stopping motors!")
         for motor in self.motors:
-            if isinstance(motor, Motor):
+            if isinstance(motor, _Motor):
                 print(f"    Stopping motor: {motor.motor_id}")
                 motor.stop()
                 print(f"    {motor.motor_id} stopped.")

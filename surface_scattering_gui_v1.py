@@ -1,3 +1,5 @@
+import time
+
 from PySide6.QtGui import QPixmap, QKeyEvent
 from PySide6.QtCore import QSize, Qt, QThread, QThreadPool, Signal
 from PySide6.QtWidgets import (
@@ -43,8 +45,6 @@ Dependent Software:
     Correct motors have to be set up in the Thorlabs Kinesis user interface.
     Kinesis user interface has to be closed while this program is running, or the controller fails to connect.
 """
-# TODO: Check if homing can be activated for each motor at the same time (do we need to disable homing buttons?)
-
 
 controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
 
@@ -62,6 +62,7 @@ def days_hours_minutes_seconds(dt):
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
+        # Window setup
         _central_widget = QWidget()
         self.setCentralWidget(_central_widget)
         self._layout = QGridLayout()
@@ -76,7 +77,7 @@ class Window(QMainWindow):
         self._scan_3d = False
 
         # Thread variables
-        self.worker = QThread()
+        self.workers = []
         self._thread_pool = QThreadPool()
 
         # Labels
@@ -138,7 +139,7 @@ class Window(QMainWindow):
         self._move_3_to = self._push_button("Move")
         self._scan = self._push_button("Scan")
         self._stop = self._push_button("STOP")
-        self._test_button = self._push_button("Test")
+        self._connection_button = self._push_button("Connect")
 
         self._home1.clicked.connect(lambda: self.start_homing(1))
         self._home2.clicked.connect(lambda: self.start_homing(2))
@@ -151,7 +152,7 @@ class Window(QMainWindow):
         self._move_3_to.clicked.connect(lambda: self.move_to(3, float(self._m3_to_value.text())))
         self._stop.clicked.connect(lambda: self.stop_motors())
         self._scan.clicked.connect(lambda: self.start_scanning())
-        self._test_button.clicked.connect(lambda: self.test_function())
+        self._connection_button.clicked.connect(lambda: self.connect_devices())
 
         # Progress bar
         self._progress_bar = self._progress_bar(0)
@@ -200,7 +201,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._m3_step_value, 6, 3, 1, 1)
         self._layout.addWidget(self._measurement_points_value, 8, 2, 1, 1)
         self._layout.addWidget(self._scan, 10, 1, 1, 3)
-        self._layout.addWidget(self._test_button, 0, 1, 1, 1)
+        self._layout.addWidget(self._connection_button, 0, 1, 1, 1)
         self._layout.addWidget(self._home1, 14, 1, 1, 1)
         self._layout.addWidget(self._home2, 14, 2, 1, 1)
         self._layout.addWidget(self._home3, 14, 3, 1, 1)
@@ -322,27 +323,23 @@ class Window(QMainWindow):
     def keyPressEvent(self, event):
         # For safety reasons, if any motor is moving and any key is pressed, all the motors stop.
         # Does not work with "SpaceBar" key.
-        if isinstance(event, QKeyEvent) and self.worker.isRunning():
+        if isinstance(event, QKeyEvent) and any(worker.isRunning() for worker in self.workers):
             self.stop_motors()
 
     #  ---------------------------------------------------------------------------------------    Motor moving functions
     def start_homing(self, motor_id):
-        self.worker = HomingThread(motor_id)
-        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
-        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
-
+        worker = HomingThread(motor_id)
+        self.workers.append(worker)
         print("Activated motor:", motor_id)
 
-        self.worker.start()
+        worker.start()
 
     def move_to(self, motor_id, position):
-        self.worker = MovingThread(motor_id, position)
-        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
-        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
-
+        worker = MovingThread(motor_id, position)
+        self.workers.append(worker)  # Associating the worker with the object prevents crashing
         print("Activated motor:", motor_id)
 
-        self.worker.start()
+        worker.start()
 
     def start_scanning(self):
         if self._measurement_1d.isChecked():
@@ -368,26 +365,33 @@ class Window(QMainWindow):
             self._scan_1d]
 
         print("Input Data: ", self._input_data)
-        self.worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
-        self.worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
-        self.worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
-        self.worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
+        worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
+        self.workers.append(worker)
+        worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
+        worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
+        worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
 
         self._home1.setEnabled(False)
         self._home2.setEnabled(False)
         self._home3.setEnabled(False)
         self._scan.setEnabled(False)
 
-        self.worker.start()
+        worker.start()
 
     @staticmethod
     def stop_motors():
         controller.stop_motors()
-        if hasattr(controller, 'disconnect()'):
-            controller.disconnect()
 
-    def test_function(self):
-        print(f"test function {self._scan_1d}")
+    def connect_devices(self):
+        if self._connection_button.text() == "Connect":
+            connection_check = controller.connect()  # Connects to the controller and returns 0 if connected correctly
+            if connection_check == 1:
+                # Not connected (Error)
+                return 1
+            self._connection_button.setText("Disconnect")
+        elif self._connection_button.text() == "Disconnect" and hasattr(controller, 'disconnect()'):
+            controller.disconnect()
+            self._connection_button.setText("Connect")
 
 
 # Threads for moving the motors:
@@ -396,13 +400,10 @@ class HomingThread(QThread):
 
     def __init__(self, motor_id):
         super().__init__()
-        controller.connect()
         self._active_motor = controller.motors[motor_id]
 
     def run(self) -> None:
         self._active_motor.home(velocity=10)
-        controller.disconnect()
-        print("Controller disconnected.")
 
 
 class MovingThread(QThread):
@@ -411,13 +412,10 @@ class MovingThread(QThread):
     def __init__(self, motor_id, position):
         super().__init__()
         self._position = position
-        controller.connect()
         self._active_motor = controller.motors[motor_id]
 
     def run(self) -> None:
         self._active_motor.move_to_position(self._position)
-        controller.disconnect()
-        print("Controller disconnected.")
 
 
 class ScanningThread(QThread):
@@ -429,7 +427,6 @@ class ScanningThread(QThread):
         self.scan_1d = scan_1d
         self.scan_3d = scan_3d
         self.input_data = input_data
-        controller.connect()
 
     def run(self) -> None:
         if self.scan_1d:
@@ -439,13 +436,14 @@ class ScanningThread(QThread):
             print("3D scanning.")
             controller.scanning_3d(self.input_data, self.on_progress, self.on_progress2)
 
-        controller.disconnect()
-        print("Controller disconnected.")
-
 
 if __name__ == '__main__':
     # Create the Qt Application
     app = QApplication([])
     window = Window()
     window.show()
-    sys.exit(app.exec())
+    window_termination = app.exec()
+    if hasattr(controller, 'disconnect()'):
+        controller.disconnect()
+        time.sleep(1)
+    sys.exit(window_termination)
