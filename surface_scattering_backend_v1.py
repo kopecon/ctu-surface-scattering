@@ -1,3 +1,4 @@
+import math
 import os
 import time
 
@@ -116,6 +117,21 @@ class _Motor:
             position = self.get_position()
             print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
             message_type, message_id, _ = self._controller.wait_for_message(self.motor_id)
+            movement_direction = self.check_for_movement_direction(position[1])
+            illegal_position = self.check_for_illegal_position(position[1])
+            if illegal_position:
+                if abs(position[1]-self.hardware_limits[1]) < abs(position[1]-self.hardware_limits[0]) \
+                        and movement_direction == 'FORWARD':
+                    self.stop()
+                    print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                    break
+                elif abs(position[1]-self.hardware_limits[0]) < abs(position[1]-self.hardware_limits[1]) \
+                        and movement_direction == 'BACKWARD':
+                    self.stop()
+                    print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                    break
+            if self.check_for_crossing_zero():
+                print("crossed 0")
         else:
             # print("Different message: ", message_id, message_type, _)
             pass
@@ -196,13 +212,22 @@ class _Motor:
             return None
 
     def check_for_illegal_position(self, target_position):
-        target_position = target_position[1]
         left_limit = self.hardware_limits[0]
         right_limit = self.hardware_limits[1]
-        print(f'{left_limit} < {target_position} < {right_limit}')
-        if left_limit > target_position > 360 or 0 < target_position < right_limit:
+        if left_limit < target_position < 360 or 0 < target_position < right_limit:
             return False
         else:
+            return True
+
+    def check_for_movement_direction(self, previous_position):
+        new_position = self.get_position()[1]
+        if new_position > previous_position:
+            return 'FORWARD'
+        elif new_position < previous_position:
+            return 'BACKWARD'
+
+    def check_for_crossing_zero(self):
+        if math.isclose(self.get_position()[1], 0, abs_tol=2):
             return True
 
     # --------------------------------------------------------------------------------------    Setting Motor Parameters
@@ -314,13 +339,17 @@ class _Motor:
         self._stop_polling()
 
     def move_to_position(self, position):
+        illegal_position = self.check_for_illegal_position(position)
+        # if not illegal_position:
         self._start_polling()
-        position_in_device_unit = self._controller.get_device_unit_from_real_value(self.motor_id, position, "DISTANCE")
-
+        position_in_device_unit = self._controller.get_device_unit_from_real_value(self.motor_id,
+                                                                                   position,
+                                                                                   "DISTANCE")
         self._controller.move_to_position(self.motor_id, position_in_device_unit)
         self._wait(1)
         self._stop_polling()
-        print("In illegal zone:", self.check_for_illegal_position(self.get_position()))
+        # else:
+        #    print("Movement would result in illegal position")
 
     def stop(self):
         # stop_immediate(self, channel)  might be another option but following version works so far.
