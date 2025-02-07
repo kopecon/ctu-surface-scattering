@@ -45,8 +45,6 @@ Dependent Software:
     Correct motors have to be set up in the Thorlabs Kinesis user interface.
     Kinesis user interface has to be closed while this program is running, or the controller fails to connect.
 """
-# TODO: Check if homing can be activated for each motor at the same time (do we need to disable homing buttons?)
-
 
 controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
 
@@ -398,7 +396,6 @@ class Window(QMainWindow):
 
 # Threads for moving the motors:
 class HomingThread(QThread):
-    # FIXME: Homing more motors at once is crashing, but moving them is ok
     on_progress = Signal(int)
 
     def __init__(self, motor_id):
