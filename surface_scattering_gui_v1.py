@@ -386,8 +386,6 @@ class Window(QMainWindow):
     @staticmethod
     def stop_motors():
         controller.stop_motors()
-        if hasattr(controller, 'disconnect()'):
-            controller.disconnect()
 
     def connect_devices(self):
         if self._connection_button.text() == "Connect":
