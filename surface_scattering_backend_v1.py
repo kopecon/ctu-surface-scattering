@@ -35,13 +35,13 @@ class _Motor:
         else:
             print("Different message: ", message_id, message_type, _)
 
-    def _load_settings(self):
+    def load_settings(self):
         self._controller.load_settings(self.motor_id)
         # the SBC_Open(serialNo) function in Kinesis is non-blocking, and therefore we
         # should add a delay for Kinesis to establish communication with the serial port
         time.sleep(1)
         self.settings_loaded = True
-        print("Motor setting loaded.")
+        print(f"Motor {self.motor_id} setting loaded.")
 
     def _start_polling(self, rate=200):
         self._controller.start_polling(self.motor_id, rate)
@@ -183,8 +183,8 @@ class _Motor:
     # ----------------------------------------------------------------------------------------------    Moving Functions
 
     def home(self, velocity):
+        # FIXME: Motors are not homing to 0.0 or reading wrong value
         if self._parent is not None:
-            self._load_settings()
             location = self.get_location(240, 120)
             if location == 0:
                 pass
@@ -207,16 +207,11 @@ class _Motor:
             self._wait(0)
             self.get_position()
             self._stop_polling()
-            print(f"Finishing homing motor {self.motor_id}...")
+            print(f"Motor {self.motor_id} is homed")
         else:
             print("Not connected to controller.")
 
     def move_to_position(self, position):
-        # 90 deg in GUI = 360 - 90 in motor angles. The motor rotates anticlockwise.
-        anti_clockwise_rotation = 360 - position
-        position = anti_clockwise_rotation  # TODO: find if there is a better way
-
-        self._load_settings()
 
         self._start_polling()
         position_in_device_unit = self._controller.get_device_unit_from_real_value(self.motor_id, position, "DISTANCE")
@@ -283,6 +278,9 @@ class MotorController:
             self.motor_2 = self.motors[2]
             self.motor_3 = self.motors[3]
             print("Connection done.")
+            self.motor_1.load_settings()
+            self.motor_2.load_settings()
+            self.motor_3.load_settings()
             return 0  # Successful
         except OSError:
             print("No devices found.")
@@ -292,6 +290,7 @@ class MotorController:
         self.connectedController.disconnect()
         # To make sure the serial communication is handled properly
         time.sleep(1)
+        print("Controller disconnected.")
 
     def scanning_1d(self, input_data, on_progress, on_progress2):
         scan_1d(self.motors, input_data, on_progress, on_progress2)
