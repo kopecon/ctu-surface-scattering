@@ -448,4 +448,6 @@ if __name__ == '__main__':
     app = QApplication([])
     window = Window()
     window.show()
+    print("hello world")
     sys.exit(app.exec())
+
