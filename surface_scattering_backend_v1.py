@@ -94,6 +94,7 @@ class Motor:
         return min_angle_r_u, max_angle_r_u
 
     def get_location(self, left_limit=270, right_limit=90):
+        # TODO find illegal positions for each motor independently
         _, position_r_u = self.get_position()
         if position_r_u == 0:
             # Home
@@ -174,6 +175,12 @@ class Motor:
         self.set_homing_parameters(2, 1, velocity, 3)
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
+    def fix_illegal_position(self):
+        current_location = self.get_location()
+        if current_location == 3:
+            self.move_to_position(275)
+        elif current_location == 4:
+            self.move_to_position(85)
 
     def home(self, velocity):
         if self._parent is not None:
