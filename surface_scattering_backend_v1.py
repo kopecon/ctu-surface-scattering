@@ -128,12 +128,13 @@ class _Motor:
 
         # Movement status
         self.is_moving = False
+        self.reached_limit = False
         self.crossed_zero_from_left = False
         self.crossed_zero_from_right = False
         self.crossing_zero_tolerance = 20
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
-    def _wait(self, value: int):
+    def _wait(self, value: int, to_position=None):
         # Works in combination with polling. "start polling, wait, stop polling" to print positions of the motor
         # while moving.
         self._parent_controller.clear_message_queue(self.motor_id)
@@ -150,11 +151,13 @@ class _Motor:
                         and movement_direction == 'FORWARD':
                     self.stop()
                     print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                    self.reached_limit = True
                     break
                 elif abs(position[1] - self.hardware_limits[0]) < abs(position[1] - self.hardware_limits[1]) \
                         and movement_direction == 'BACKWARD':
                     self.stop()
                     print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                    self.reached_limit = True
                     break
             # Check for crossing the zero and the direction of the crossing to prevent the cables to get tangled.
             if self.motor_id == 2:
@@ -164,16 +167,24 @@ class _Motor:
                     if self.get_position()[1] < 360 - self.crossing_zero_tolerance:
                         self.stop()
                         print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                        self.reached_limit = True
+                        break
                 elif self._check_for_crossing_zero() and movement_direction == 'FORWARD':
                     self.crossed_zero_from_left = True
                     print("crossed 0 from left to right")
                     if self.get_position()[1] > self.crossing_zero_tolerance:
                         self.stop()
                         print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                        self.reached_limit = True
+                        break
 
-        else:
-            self.is_moving = False
-            # print("Different message: ", message_id, message_type, _)
+        # Try reversing the movement direction if motor reached the hardware limit
+        if self.reached_limit and to_position:
+            self.set_rotation_mode(mode=2, direction=2)  # Reverse the movement direction
+            self.move_to_position(to_position)
+
+        # print("Different message: ", message_id, message_type, _)
+        self.is_moving = False
 
     def _load_settings(self):
         """
@@ -396,7 +407,7 @@ class _Motor:
                                                                                               position,
                                                                                               "DISTANCE")
             self._parent_controller.move_to_position(self.motor_id, position_in_device_unit)
-            self._wait(1)
+            self._wait(1, position)
             self._stop_polling()
         else:
             print("Movement would result in illegal position")
