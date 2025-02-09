@@ -338,12 +338,6 @@ class _Motor:
             return print("Settings need to be loaded first.")
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
-    def fix_illegal_position(self):
-        current_location = self.get_location_quadrant()
-        if current_location == 3:
-            self.move_to_position(275)
-        elif current_location == 4:
-            self.move_to_position(85)
 
     def home(self, velocity):
         quadrant = self.get_location_quadrant()
