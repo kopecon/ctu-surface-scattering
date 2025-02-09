@@ -129,7 +129,8 @@ class _Motor:
         # Movement status
         self.is_moving = False
         self.crossed_zero_from_left = False
-        self.crossed_zero_from_right = True
+        self.crossed_zero_from_right = False
+        self.crossing_zero_tolerance = 20
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
     def _wait(self, value: int):
@@ -138,6 +139,7 @@ class _Motor:
         self._parent_controller.clear_message_queue(self.motor_id)
         message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
         while message_type != 2 or message_id != value:
+            self.is_moving = True
             position = self.get_position()
             print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
             message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
@@ -157,12 +159,21 @@ class _Motor:
             # Check for crossing the zero and the direction of the crossing to prevent the cables to get tangled.
             if self.motor_id == 2:
                 if self._check_for_crossing_zero() and movement_direction == 'BACKWARD':
+                    self.crossed_zero_from_right = True
                     print("crossed 0 from right to left")
+                    if self.get_position()[1] < 360 - self.crossing_zero_tolerance:
+                        self.stop()
+                        print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
                 elif self._check_for_crossing_zero() and movement_direction == 'FORWARD':
+                    self.crossed_zero_from_left = True
                     print("crossed 0 from left to right")
+                    if self.get_position()[1] > self.crossing_zero_tolerance:
+                        self.stop()
+                        print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+
         else:
+            self.is_moving = False
             # print("Different message: ", message_id, message_type, _)
-            pass
 
     def _load_settings(self):
         """
@@ -341,7 +352,7 @@ class _Motor:
 
     def home(self, velocity):
         quadrant = self.get_location_quadrant()
-
+        # Set the proper direction of homing based on the motor position
         if self.motor_id != 2:
             if quadrant == 0:
                 pass
@@ -352,9 +363,14 @@ class _Motor:
                 self.move_to_position(350)
                 self._set_forward_homing(velocity)
 
+        # Set the proper direction of homing based on crossing zero direction
         elif self.motor_id == 2:
-            self.move_to_position(10)
-            self._set_backwards_homing()
+            if not self.crossed_zero_from_right:
+                self.move_to_position(10)
+                self._set_backwards_homing()
+            elif self.crossed_zero_from_right:
+                self.move_to_position(350)
+                self._set_forward_homing()
 
         self._start_polling(rate=self._polling_rate)
 
@@ -364,7 +380,12 @@ class _Motor:
         time.sleep(1)
         position = self.get_position()
         print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
-        print(f"Motor {self.motor_id} successfully homed")
+        if position[1] == 0:
+            self.crossed_zero_from_left = False
+            self.crossed_zero_from_right = False
+            print(f"Motor {self.motor_id} successfully homed.")
+        else:
+            print(f"Motor {self.motor_id} not homed successfully.")
         self._stop_polling()
 
     def move_to_position(self, position):
