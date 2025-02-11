@@ -404,7 +404,6 @@ class Window(QMainWindow):
         self.connect_devices()
 
 
-
 # Threads for moving the motors:
 class HomingThread(QThread):
     on_progress = Signal(int)
