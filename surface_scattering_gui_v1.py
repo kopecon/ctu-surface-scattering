@@ -398,6 +398,12 @@ class Window(QMainWindow):
         elif self._connection_button.text() == "Disconnect":
             controller.disconnect()
             self._connection_button.setText("Connect")
+            # Disable buttons
+            widgets = self.get_window_widgets()
+            for widget in widgets:
+                if hasattr(widget, 'setEnabled'):
+                    if isinstance(widget, QPushButton) and widget.text() != 'Connect':
+                        widget.setEnabled(False)
 
     def _connect_on_start(self):
         widgets = self.get_window_widgets()

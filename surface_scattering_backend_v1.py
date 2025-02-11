@@ -65,9 +65,9 @@ class MotorController:
             self.motors = [None]  # Erase previously loaded motors
             # Create list of available motors
             for i, chanel in enumerate(self.channels):
+                print(f"    Motor {i + 1} identified.")
                 # i starts indexing from 0 but motor ID starts from 1 => i+1
                 self.motors.append(_Motor(self, motor_id=i + 1))
-                print(f"    Motor {i + 1} identified.")
 
             # Assign variable for each motor separately
             self.motor_1 = self.motors[1]  # Motor holding the laser
@@ -76,7 +76,8 @@ class MotorController:
             print("Connection done.")
             # Set the hardware limits of each motor independently
             self.motor_1.hardware_limits = (270, 90)
-            self.motor_2.hardware_limits = (0, 360)
+            self.motor_2.hardware_limits = (0, 330)  # TODO: Ask if it really can be more than 330...
+            self.motor_2.set_rotation_mode(mode=1, direction=1)
             self.motor_3.hardware_limits = (270, 90)
             print("Motor settings loaded.")
             return 0  # Successful
@@ -108,6 +109,7 @@ class MotorController:
                 print(f"    Stopping motor: {motor.motor_id}")
                 motor.stop()
                 print(f"    {motor.motor_id} stopped.")
+        time.sleep(1)
 
 
 class _Motor:
@@ -129,17 +131,20 @@ class _Motor:
 
         # Movement status
         self.is_moving = False
-        self.reached_limit = False
+        self.reached_left_limit = False
+        self.reached_right_limit = False
         self.crossed_zero_from_left = False
         self.crossed_zero_from_right = False
-        self.crossing_zero_tolerance = 20
+        self.crossing_zero_tolerance = 30
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
-    def _wait(self, value: int, to_position=None):
+    def _while_moving_do(self, value: int, to_position=None):
         # Works in combination with polling. "start polling, wait, stop polling" to print positions of the motor
         # while moving.
         self._parent_controller.clear_message_queue(self.motor_id)
         message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
+        # Loop until the motor reaches the desired position and changes message type
+        latest_positions = [0]
         while message_type != 2 or message_id != value:
             self.is_moving = True
             position = self.get_position()
@@ -147,42 +152,19 @@ class _Motor:
             message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
             movement_direction = self._check_for_movement_direction(position[1])
             illegal_position = self._check_for_illegal_position(position[1])
-            if illegal_position:
+            if illegal_position and self.motor_id != 2:  # TODO: Solve limits for motor 2
                 if abs(position[1] - self.hardware_limits[1]) < abs(position[1] - self.hardware_limits[0]) \
                         and movement_direction == 'FORWARD':
                     self.stop()
                     print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
-                    self.reached_limit = True
+                    self.reached_right_limit = True
                     break
                 elif abs(position[1] - self.hardware_limits[0]) < abs(position[1] - self.hardware_limits[1]) \
                         and movement_direction == 'BACKWARD':
                     self.stop()
                     print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
-                    self.reached_limit = True
+                    self.reached_left_limit = True
                     break
-            # Check for crossing the zero and the direction of the crossing to prevent the cables to get tangled.
-            if self.motor_id == 2:
-                if self._check_for_crossing_zero() and movement_direction == 'BACKWARD':
-                    self.crossed_zero_from_right = True
-                    print("crossed 0 from right to left")
-                    if self.get_position()[1] < 360 - self.crossing_zero_tolerance:
-                        self.stop()
-                        print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
-                        self.reached_limit = True
-                        break
-                elif self._check_for_crossing_zero() and movement_direction == 'FORWARD':
-                    self.crossed_zero_from_left = True
-                    print("crossed 0 from left to right")
-                    if self.get_position()[1] > self.crossing_zero_tolerance:
-                        self.stop()
-                        print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
-                        self.reached_limit = True
-                        break
-
-        # Try reversing the movement direction if motor reached the hardware limit
-        if self.reached_limit and to_position:
-            self.set_rotation_mode(mode=2, direction=2)  # Reverse the movement direction
-            self.move_to_position(to_position)
 
         # print("Different message: ", message_id, message_type, _)
         self.is_moving = False
@@ -283,8 +265,13 @@ class _Motor:
             return 'BACKWARD'
 
     def _check_for_crossing_zero(self):
-        if math.isclose(self.get_position()[1], 0, abs_tol=2):
+        '''
+        if math.isclose(self.get_position()[1], 0, abs_tol=5):
             return True
+        else:
+            return False
+        '''
+
 
     # --------------------------------------------------------------------------------------    Setting Motor Parameters
     #  All parameters can be set only after "load_settings()" has been called or gets overwritten
@@ -388,7 +375,7 @@ class _Motor:
 
         self._parent_controller.home(self.motor_id)
         print(f"Homing motor {self.motor_id}...")
-        self._wait(0)
+        self._while_moving_do(0)
         time.sleep(1)
         position = self.get_position()
         print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
@@ -402,13 +389,14 @@ class _Motor:
 
     def move_to_position(self, position):
         illegal_position = self._check_for_illegal_position(position)
-        if not illegal_position:
+        override = 1  # TODO remove after debugging
+        if not illegal_position or override == 1:
             self._start_polling()
             position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                               position,
                                                                                               "DISTANCE")
             self._parent_controller.move_to_position(self.motor_id, position_in_device_unit)
-            self._wait(1, position)
+            self._while_moving_do(1, position)
             self._stop_polling()
         else:
             print("Movement would result in illegal position")
