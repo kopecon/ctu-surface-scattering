@@ -1,7 +1,7 @@
 import time
 
 from PySide6.QtGui import QPixmap, QKeyEvent
-from PySide6.QtCore import QSize, Qt, QThread, QThreadPool, Signal
+from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -78,7 +78,6 @@ class Window(QMainWindow):
 
         # Thread variables
         self.workers = []
-        self._thread_pool = QThreadPool()
 
         # Labels
         _label_motor_setup_title = self._label("Motors Setup:")
