@@ -389,8 +389,13 @@ class Window(QMainWindow):
             if connection_check == 1:
                 # Not connected (Error)
                 return 1
-            self._connection_button.setText("Disconnect")
-        elif self._connection_button.text() == "Disconnect" and hasattr(controller, 'disconnect'):
+            elif connection_check == 0:
+                widgets = self.get_window_widgets()
+                for widget in widgets:
+                    if hasattr(widget, 'setEnabled'):
+                        widget.setEnabled(True)
+                self._connection_button.setText("Disconnect")
+        elif self._connection_button.text() == "Disconnect":
             controller.disconnect()
             self._connection_button.setText("Connect")
 
@@ -453,7 +458,6 @@ if __name__ == '__main__':
     window = Window()
     window.show()
     window_termination = app.exec()
-    if hasattr(controller, 'disconnect'):
-        controller.disconnect()
-        time.sleep(1)
+    controller.disconnect()
+    time.sleep(1)
     sys.exit(window_termination)

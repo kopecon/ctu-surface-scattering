@@ -89,10 +89,11 @@ class MotorController:
         Disconnects the device and closes the communication with it.
         :return: None
         """
-        self.active_controller.disconnect()
-        # To make sure the serial communication is handled properly
-        time.sleep(1)
-        print("Controller disconnected.")
+        if hasattr(self.active_controller, 'disconnect'):
+            self.active_controller.disconnect()
+            # To make sure the serial communication is handled properly
+            time.sleep(1)
+            print("Controller disconnected.")
 
     def scanning_1d(self, input_data, on_progress, on_progress2):
         scan_1d(self.motors, input_data, on_progress, on_progress2)
