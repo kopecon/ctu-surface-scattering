@@ -216,6 +216,8 @@ class Window(QMainWindow):
         self._layout.addWidget(self._measurement_1d, 9, 2, 1, 1)
         self._layout.addWidget(self._measurement_3d, 9, 3, 1, 1)
 
+        self._connect_on_start()  # Try connecting to the measurement device
+
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
     def _label(text: str) -> QLabel:
@@ -392,6 +394,16 @@ class Window(QMainWindow):
         elif self._connection_button.text() == "Disconnect" and hasattr(controller, 'disconnect'):
             controller.disconnect()
             self._connection_button.setText("Connect")
+
+    def _connect_on_start(self):
+        widgets = self.get_window_widgets()
+        for widget in widgets:
+            if hasattr(widget, 'setEnabled'):
+                if isinstance(widget, QPushButton) and widget.text() != 'Connect':
+                    widget.setEnabled(False)
+
+        self.connect_devices()
+
 
 
 # Threads for moving the motors:
