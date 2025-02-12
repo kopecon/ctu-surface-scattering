@@ -75,8 +75,7 @@ class MotorController:
             print("Connection done.")
             # Set the hardware limits of each motor independently
             self.motor_1.hardware_limits = (270, 90)
-            self.motor_2.hardware_limits = (0, 330)  # TODO: Ask if it really can be more than 330...
-            self.motor_2.set_rotation_mode(mode=1, direction=1)
+            self.motor_2.hardware_limits = (0, 360)
             self.motor_3.hardware_limits = (270, 90)
             print("Motor settings loaded.")
             return 0  # Successful
@@ -132,18 +131,18 @@ class _Motor:
         self.is_moving = False
         self.reached_left_limit = False
         self.reached_right_limit = False
-        self.crossed_zero_from_left = False
-        self.crossed_zero_from_right = False
-        self.crossing_zero_tolerance = 30
+
+        # Motor 2 has different hardware limits than motor 1 and 3. Therefore, setup motor 2 independently:
+        if self.motor_id == 2:
+            self.set_rotation_mode(mode=1, direction=1)  # "Move to position" moves clockwise for positive values
+            self._set_backwards_homing()  # Always home anticlockwise
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
-    def _while_moving_do(self, value: int, to_position=None):
-        # Works in combination with polling. "start polling, wait, stop polling" to print positions of the motor
-        # while moving.
+    def _while_moving_do(self, value: int):
+        # Works in combination with polling. "start polling, wait, stop polling" to perform tasks while moving.
         self._parent_controller.clear_message_queue(self.motor_id)
         message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
-        # Loop until the motor reaches the desired position and changes message type
-        latest_positions = [0]
+        # Loop until the motor reaches the desired position and changes message type then stop while loop.
         while message_type != 2 or message_id != value:
             self.is_moving = True
             position = self.get_position()
@@ -151,22 +150,26 @@ class _Motor:
             message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
             movement_direction = self._check_for_movement_direction(position[1])
             illegal_position = self._check_for_illegal_position(position[1])
-            if illegal_position and self.motor_id != 2:  # TODO: Solve limits for motor 2
+            if illegal_position:
                 if abs(position[1] - self.hardware_limits[1]) < abs(position[1] - self.hardware_limits[0]) \
                         and movement_direction == 'FORWARD':
                     self.stop()
-                    print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                    print(f"Motor {self.motor_id} reached right limit. Stopping!")
+                    self.reached_left_limit = False
                     self.reached_right_limit = True
                     break
                 elif abs(position[1] - self.hardware_limits[0]) < abs(position[1] - self.hardware_limits[1]) \
                         and movement_direction == 'BACKWARD':
                     self.stop()
-                    print(f"Motor {self.motor_id} movement resulted in illegal position. Stopping!")
+                    print(f"Motor {self.motor_id} reached left limit. Stopping!")
                     self.reached_left_limit = True
+                    self.reached_right_limit = False
                     break
 
-        # print("Different message: ", message_id, message_type, _)
         self.is_moving = False
+        self.set_velocity(velocity=20, acceleration=30)  # TODO: find default velocity params
+        self.set_rotation_mode(mode=2, direction=0)  # Return to quickest pathing mode
+        print("Rotation mode reset")
 
     def _load_settings(self):
         """
@@ -337,6 +340,14 @@ class _Motor:
         else:
             return print("Settings need to be loaded first.")
 
+    def set_velocity(self, velocity=20, acceleration=30):
+        velocity_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, velocity,
+                                                                                        "VELOCITY")
+        acceleration_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, acceleration,
+                                                                                            "ACCELERATION")
+
+        self._parent_controller.set_vel_params(self.motor_id, velocity_device_units, acceleration_device_units)
+
     # ----------------------------------------------------------------------------------------------    Moving Functions
 
     def home(self, velocity):
@@ -352,14 +363,8 @@ class _Motor:
                 self.move_to_position(350)
                 self._set_forward_homing(velocity)
 
-        # Set the proper direction of homing based on crossing zero direction
         elif self.motor_id == 2:
-            if not self.crossed_zero_from_right:
-                self.move_to_position(10)
-                self._set_backwards_homing()
-            elif self.crossed_zero_from_right:
-                self.move_to_position(350)
-                self._set_forward_homing()
+            self.move_to_position(10)
 
         self._start_polling(rate=self._polling_rate)
 
@@ -370,24 +375,41 @@ class _Motor:
         position = self.get_position()
         print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
         if position[1] == 0:
-            self.crossed_zero_from_left = False
-            self.crossed_zero_from_right = False
             print(f"Motor {self.motor_id} successfully homed.")
+            self.reached_left_limit = False
+            self.reached_right_limit = False
         else:
-            print(f"Motor {self.motor_id} not homed successfully.")
+            print(f"Motor {self.motor_id} failed to home.")
         self._stop_polling()
 
     def move_to_position(self, position):
         illegal_position = self._check_for_illegal_position(position)
-        override = 1  # TODO remove after debugging
-        if not illegal_position or override == 1:
+        if not illegal_position:
             self._start_polling()
             position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                               position,
                                                                                               "DISTANCE")
             self._parent_controller.move_to_position(self.motor_id, position_in_device_unit)
-            self._while_moving_do(1, position)
+            self._while_moving_do(1)
             self._stop_polling()
+
+            if self.motor_id != 2:
+                if self.reached_left_limit and not self.is_moving:
+                    print("Left limit handling")
+                    self.set_velocity(velocity=10, acceleration=20)
+                    self.set_rotation_mode(mode=2, direction=1)  # Forward direction
+                    print("rotation mode set")
+                    time.sleep(1)
+                    self.reached_left_limit = False
+                    self.move_to_position(position)  # Rotate clockwise
+                elif self.reached_right_limit:
+                    print("Right limit handling")
+                    self.set_velocity(velocity=10, acceleration=20)
+                    self.set_rotation_mode(mode=2, direction=2)  # Forward direction
+                    print("rotation mode set")
+                    time.sleep(1)
+                    self.reached_right_limit = False
+                    self.move_to_position(position)  # Rotate anticlockwise
         else:
             print("Movement would result in illegal position")
 
