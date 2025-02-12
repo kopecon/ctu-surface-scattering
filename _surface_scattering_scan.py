@@ -7,8 +7,10 @@ import numpy as np
 import time
 from datetime import datetime
 
-
+# NI-DAQmx 2025 Q1 has to be installed on the executing pc to run the scan.
+# NI-DAQmx 2025 Q1 download: https://www.ni.com/en/support/downloads/drivers/download.ni-daq-mx.html?srsltid=AfmBOooJ-Ko5HpJHEr4yPzQEZKufBWdBc1JjWhomtdJ27QKXivgjvTBr#559060
 # TODO: Specify exceptions
+
 
 def _find_range(start, stop, step):
     dx = int((stop - start) / step)
@@ -100,55 +102,52 @@ def scan_1d(motors, input_data, on_progress, on_progress2):
                 m3 = angles[2]
                 print("set angles")
 
-                try:
-                    with nidaqmx.Task() as task:
-                        task.ai_channels.add_ai_voltage_chan(
-                            "myDAQ1/ai0:1"
-                        )
-                        task.timing.cfg_samp_clk_timing(
-                            100000,
-                            source="",
-                            active_edge=Edge.RISING,
-                            sample_mode=AcquisitionType.FINITE,
-                            samps_per_chan=10,
-                        )
+                with nidaqmx.Task() as task:
+                    task.ai_channels.add_ai_voltage_chan(
+                        "myDAQ1/ai0:1"
+                    )
+                    task.timing.cfg_samp_clk_timing(
+                        100000,
+                        source="",
+                        active_edge=Edge.RISING,
+                        sample_mode=AcquisitionType.FINITE,
+                        samps_per_chan=10,
+                    )
 
-                        n = 0
-                        num = input_data[9]
-                        print("num = ", int(num))
-                        print(type(num))
+                    n = 0
+                    num = input_data[9]
+                    print("num = ", int(num))
+                    print(type(num))
 
-                        column_names = ["a", "b", "c", "d", "e"]
-                        df = pd.DataFrame(columns=column_names)
+                    column_names = ["a", "b", "c", "d", "e"]
+                    df = pd.DataFrame(columns=column_names)
 
-                        while n < int(num):
-                            aaa = task.read()
-                            data = {
-                                "a": [m1],
-                                "b": [m2],
-                                "c": [m3],
-                                "d": [aaa[0]],
-                                "e": [aaa[1]],
-                            }
-                            dp = pd.DataFrame(data)
-                            df = pd.concat((df, dp), axis=0)
-                            n += 1
-                except:  # TODO Specify exception
-                    pass
+                    while n < int(num):
+                        aaa = task.read()
+                        data = {
+                            "a": [m1],
+                            "b": [m2],
+                            "c": [m3],
+                            "d": [aaa[0]],
+                            "e": [aaa[1]],
+                        }
+                        dp = pd.DataFrame(data)
+                        df = pd.concat((df, dp), axis=0)
+                        n += 1
 
                 df2 = df.mean()
-                print("m1:", df2[0], " m2:", df2[1], " m3:", df2[2])
+                print("m1:", df2.iloc[0], " m2:", df2.iloc[1], " m3:", df2.iloc[2])
                 print(
                     "prumer Signal1:",
-                    df2[3],
+                    df2.iloc[3],
                     " a prumer Signal2:",
-                    df2[4],
+                    df2.iloc[4],
                 )
-                pomer = df2[3] / df2[4]
+                pomer = df2.iloc[3] / df2.iloc[4]
                 print("Pomer je:", pomer)
 
                 with open(name, "a") as f:
-                    line = "{};{};{};{};{};{}".format(df2[0], df2[1], df2[2], df2[3], df2[4], pomer)
+                    line = "{};{};{};{};{};{}".format(df2.iloc[0], df2.iloc[1], df2.iloc[2], df2.iloc[3], df2.iloc[4], pomer)
                     print(line, file=f)
 
                 _update_progress(_progress_count, 1)
