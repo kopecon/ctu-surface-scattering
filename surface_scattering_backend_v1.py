@@ -1,4 +1,3 @@
-import math
 import os
 import time
 
@@ -263,15 +262,6 @@ class _Motor:
             return 'FORWARD'
         elif new_position < previous_position:
             return 'BACKWARD'
-
-    def _check_for_crossing_zero(self):
-        '''
-        if math.isclose(self.get_position()[1], 0, abs_tol=5):
-            return True
-        else:
-            return False
-        '''
-
 
     # --------------------------------------------------------------------------------------    Setting Motor Parameters
     #  All parameters can be set only after "load_settings()" has been called or gets overwritten
