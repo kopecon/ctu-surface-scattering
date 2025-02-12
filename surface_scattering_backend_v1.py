@@ -132,7 +132,7 @@ class _Motor:
         self.reached_left_limit = False
         self.reached_right_limit = False
 
-        # Motor 2 has different hardware limits than motor 1 and 3. Therefore, setup motor 2 independently:
+        # Motor 2 has different hardware limits than motor 1 and 3. Therefore, setup motor 2 separately:
         if self.motor_id == 2:
             self.set_rotation_mode(mode=1, direction=1)  # "Move to position" moves clockwise for positive values
             self._set_backwards_homing()  # Always home anticlockwise
@@ -150,7 +150,7 @@ class _Motor:
             message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
             movement_direction = self._check_for_movement_direction(position[1])
             illegal_position = self._check_for_illegal_position(position[1])
-            if illegal_position:
+            if illegal_position and value != 0:
                 if abs(position[1] - self.hardware_limits[1]) < abs(position[1] - self.hardware_limits[0]) \
                         and movement_direction == 'FORWARD':
                     self.stop()
@@ -168,8 +168,8 @@ class _Motor:
 
         self.is_moving = False
         self.set_velocity(velocity=20, acceleration=30)  # TODO: find default velocity params
-        self.set_rotation_mode(mode=2, direction=0)  # Return to quickest pathing mode
-        print("Rotation mode reset")
+        if self.motor_id != 2:
+            self.set_rotation_mode(mode=2, direction=0)  # Return to quickest pathing mode
 
     def _load_settings(self):
         """
@@ -254,10 +254,17 @@ class _Motor:
     def _check_for_illegal_position(self, target_position):
         left_limit = self.hardware_limits[0]
         right_limit = self.hardware_limits[1]
-        if left_limit < target_position < 360 or 0 < target_position < right_limit:
-            return False
-        else:
-            return True
+        if self.motor_id != 2:
+            if left_limit < target_position < 360 or 0 < target_position < right_limit:
+                return False
+            else:
+                return True
+        elif self.motor_id == 2:
+            # Motor 2 can move to "negative" values of angles. Needs to be handled separately
+            if left_limit < target_position < right_limit:
+                return False
+            else:
+                return True
 
     def _check_for_movement_direction(self, previous_position):
         new_position = self.get_position()[1]
@@ -341,6 +348,8 @@ class _Motor:
             return print("Settings need to be loaded first.")
 
     def set_velocity(self, velocity=20, acceleration=30):
+        # Velocity over 10 is already very fast to keep up with polling rate 200ms
+        # TODO: Test proper velocities
         velocity_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, velocity,
                                                                                         "VELOCITY")
         acceleration_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, acceleration,
