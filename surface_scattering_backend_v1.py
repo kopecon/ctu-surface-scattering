@@ -34,8 +34,9 @@ class MotorController:
             connection=ConnectionRecord(address=self._address, backend=self._backend))
         self.active_controller = None  # The instance of BenchtopStepperMotor class. Needs to be initiated by connect().
         self.channels = []  # List of available channels
-        self.motors = [None]  # List of available motors - motors are indexed from 1, so let 0 index be None, so the
-        # first motor is on the index=1
+        self.motors = [None, None, None, None]
+        # List of available motors - motors are indexed from 1, so let 0 index be None, so the first motor is
+        # on the index=1
 
         # There are 3 motors in our setup, so we add a variable for each motor. Motors get assigned by connect().
         self.motor_1 = None
@@ -75,7 +76,7 @@ class MotorController:
             print("Connection done.")
             # Set the hardware limits of each motor independently
             self.motor_1.hardware_limits = (270, 90)
-            self.motor_2.hardware_limits = (0, 360)
+            self.motor_2.hardware_limits = (0, 270)
             self.motor_3.hardware_limits = (270, 90)
             print("Motor settings loaded.")
             return 0  # Successful
@@ -170,6 +171,9 @@ class _Motor:
         self.set_velocity(velocity=20, acceleration=30)  # TODO: find default velocity params
         if self.motor_id != 2:
             self.set_rotation_mode(mode=2, direction=0)  # Return to quickest pathing mode
+        time.sleep(0.5)
+        position = self.get_position()
+        print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
 
     def _load_settings(self):
         """
@@ -255,13 +259,13 @@ class _Motor:
         left_limit = self.hardware_limits[0]
         right_limit = self.hardware_limits[1]
         if self.motor_id != 2:
-            if left_limit < target_position < 360 or 0 < target_position < right_limit:
+            if left_limit <= target_position <= 360 or 0 <= target_position <= right_limit:
                 return False
             else:
                 return True
         elif self.motor_id == 2:
             # Motor 2 can move to "negative" values of angles. Needs to be handled separately
-            if left_limit < target_position < right_limit:
+            if left_limit <= target_position <= right_limit:
                 return False
             else:
                 return True
@@ -380,9 +384,7 @@ class _Motor:
         self._parent_controller.home(self.motor_id)
         print(f"Homing motor {self.motor_id}...")
         self._while_moving_do(0)
-        time.sleep(1)
         position = self.get_position()
-        print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
         if position[1] == 0:
             print(f"Motor {self.motor_id} successfully homed.")
             self.reached_left_limit = False
