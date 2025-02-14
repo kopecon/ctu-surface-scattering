@@ -1,3 +1,4 @@
+# GUI libraries
 from PySide6.QtGui import QPixmap, QKeyEvent
 from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtWidgets import (
@@ -12,6 +13,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
 )
 
+# System libraries
 import sys
 from datetime import timedelta
 

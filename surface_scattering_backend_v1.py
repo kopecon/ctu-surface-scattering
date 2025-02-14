@@ -1,11 +1,9 @@
+# System libraries
 import os
 import time
 
-from msl.equipment import (
-    EquipmentRecord,
-    ConnectionRecord,
-    Backend,
-)
+# Hardware libraries
+from msl.equipment import (EquipmentRecord, ConnectionRecord, Backend)
 from msl.equipment.resources.thorlabs import MotionControl
 
 # Custom modules:
