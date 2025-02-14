@@ -1,5 +1,3 @@
-import time
-
 from PySide6.QtGui import QPixmap, QKeyEvent
 from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtWidgets import (
@@ -126,7 +124,7 @@ class Window(QMainWindow):
         self._m3_to_value = self._line_edit("90")
         self._m3_step_value = self._line_edit("30")
 
-        self._measurement_points_value = self._line_edit("500")
+        self._number_of_measurement_points_value = self._line_edit("500")
 
         # Buttons
         self._home1 = self._push_button("Motor 1 Home")
@@ -198,7 +196,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._m3_from_value, 6, 1, 1, 1)
         self._layout.addWidget(self._m3_to_value, 6, 2, 1, 1)
         self._layout.addWidget(self._m3_step_value, 6, 3, 1, 1)
-        self._layout.addWidget(self._measurement_points_value, 8, 2, 1, 1)
+        self._layout.addWidget(self._number_of_measurement_points_value, 8, 2, 1, 1)
         self._layout.addWidget(self._scan, 10, 1, 1, 3)
         self._layout.addWidget(self._connection_button, 0, 1, 1, 1)
         self._layout.addWidget(self._home1, 14, 1, 1, 1)
@@ -362,7 +360,7 @@ class Window(QMainWindow):
             self._m3_from_value.text(),
             self._m3_to_value.text(),
             self._m3_step_value.text(),
-            self._measurement_points_value.text(),
+            self._number_of_measurement_points_value.text(),
             self._scan_1d]
 
         print("Input Data: ", self._input_data)
@@ -465,5 +463,4 @@ if __name__ == '__main__':
     window.show()
     window_termination = app.exec()
     controller.disconnect()
-    time.sleep(1)
     sys.exit(window_termination)
