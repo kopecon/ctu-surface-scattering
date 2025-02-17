@@ -34,10 +34,6 @@ def _find_range_double(step):
     return point
 
 
-def _update_progress(previous_progress, num):
-    _progress_count = previous_progress + num
-
-
 def _days_hours_minutes_seconds(dt):
     return (
         dt.days,  # days
@@ -79,14 +75,10 @@ def scan_1d(motors, input_data, on_progress, on_progress2):
 
         angles[0] = i
 
-        time.sleep(2)
-
         for j in _find_range(m2_from, m2_from, s2):
             motor_2.move_to_position(j)
 
             angles[1] = j
-
-            time.sleep(2)
 
             for k in _find_range_double(m3_step):
                 c1 = time.time()
@@ -142,7 +134,7 @@ def scan_1d(motors, input_data, on_progress, on_progress2):
                                                       pomer)
                     print(line, file=f)
 
-                _update_progress(progress_count, 1)
+                progress_count += 1
                 print("Progres count: ", progress_count)
                 actual_progress = (100 / maximum) * progress_count
                 print("Progress: ", actual_progress, " %")
@@ -215,14 +207,10 @@ def scan_3d(motors, input_data, on_progress, on_progress2):
 
         angles[0] = i
 
-        time.sleep(2)
-
         for j in motor_2_range:
             motor_2.move_to_position(j)
 
             angles[1] = j
-
-            time.sleep(2)
 
             for k in motor_3_range:
                 c1 = time.time()
@@ -279,7 +267,7 @@ def scan_3d(motors, input_data, on_progress, on_progress2):
                     line = "{};{};{};{};{};{}".format(df2.iloc[0], df2.iloc[1], df2.iloc[2], df2.iloc[3], df2.iloc[4], pomer)
                     print(line, file=f)
 
-                _update_progress(progress_count, 1)
+                progress_count += 1
                 print("Progres count: ", progress_count)
                 actual_progress = (100 / full_range) * progress_count
                 print("Progress: ", actual_progress, " %")
@@ -312,9 +300,3 @@ def scan_3d(motors, input_data, on_progress, on_progress2):
                     "s",
                 )
     print("Done")
-
-
-if __name__ == '__main__':
-    scan_3d([None, None, None, None],
-            ['0', '90', '30', '90', '180', '30', '0', '90', '30', '3', False],
-            1, 2)
