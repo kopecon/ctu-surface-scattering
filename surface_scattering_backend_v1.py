@@ -106,6 +106,7 @@ class MotorController:
                 print(f"    Stopping motor: {motor.motor_id}")
                 motor.stop()
                 print(f"    {motor.motor_id} stopped.")
+        self.active_controller.disconnect()
         time.sleep(1)
 
 
@@ -407,7 +408,6 @@ class _Motor:
                     print("Left limit handling")
                     self.set_velocity(velocity=10, acceleration=20)
                     self.set_rotation_mode(mode=2, direction=1)  # Forward direction
-                    print("rotation mode set")
                     time.sleep(1)
                     self.reached_left_limit = False
                     self.move_to_position(position)  # Rotate clockwise
@@ -415,7 +415,6 @@ class _Motor:
                     print("Right limit handling")
                     self.set_velocity(velocity=10, acceleration=20)
                     self.set_rotation_mode(mode=2, direction=2)  # Forward direction
-                    print("rotation mode set")
                     time.sleep(1)
                     self.reached_right_limit = False
                     self.move_to_position(position)  # Rotate anticlockwise
