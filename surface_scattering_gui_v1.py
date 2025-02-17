@@ -297,12 +297,8 @@ class Window(QMainWindow):
         self._measurement_3d.setEnabled(False)
         self._measurement_3d.setChecked(True)
 
-    def _update_progress_bar(self, n):
-        self._progress_bar.setValue(n)
-        print("Progress num:", n)
-
-    def _update_progress_bar_label(self, dm: float):
-        delta = timedelta(seconds=dm)
+    def _update_progress_bar_label(self, finish_time):
+        delta = timedelta(seconds=finish_time)
         (days, hours, minutes, seconds) = days_hours_minutes_seconds(delta)
         n = (str(days)
              + "d "
@@ -313,6 +309,12 @@ class Window(QMainWindow):
              + str(seconds)
              + "s")
         self._label_time_to_finish_value.setText(n)
+
+    def _update_progress_bar(self, signal: list[int, float]):
+        progress = signal[0]
+        finish_time = signal[1]
+        self._progress_bar.setValue(progress)
+        self._update_progress_bar_label(finish_time)
 
     def get_window_widgets(self):
         all_window_widgets = []
@@ -370,12 +372,12 @@ class Window(QMainWindow):
         worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
         self.workers.append(worker)
         worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
-        worker.on_progress.connect(self._update_progress_bar)  # propojeni signalu
-        worker.on_progress2.connect(self._update_progress_bar_label)  # propojeni signalu
+        worker.thread_signal.connect(self._update_progress_bar)
 
         self._home1.setEnabled(False)
         self._home2.setEnabled(False)
         self._home3.setEnabled(False)
+        self._home_all.setEnabled(False)
         self._scan.setEnabled(False)
 
         worker.start()
@@ -429,7 +431,7 @@ class HomingThread(QThread):
 
 
 class MovingThread(QThread):
-    on_progress = Signal(int)
+    on_progress = Signal(float)
 
     def __init__(self, motor_id, position):
         super().__init__()
@@ -441,8 +443,7 @@ class MovingThread(QThread):
 
 
 class ScanningThread(QThread):
-    on_progress = Signal(int)
-    on_progress2 = Signal(float)
+    thread_signal = Signal(list)
 
     def __init__(self, scan_1d, scan_3d, input_data):
         super().__init__()
@@ -453,10 +454,10 @@ class ScanningThread(QThread):
     def run(self) -> None:
         if self.scan_1d:
             print("1D scanning.")
-            controller.scanning_1d(self.input_data, self.on_progress, self.on_progress2)
+            controller.scanning_1d(self.input_data, self.thread_signal)
         elif self.scan_3d:
             print("3D scanning.")
-            controller.scanning_3d(self.input_data, self.on_progress, self.on_progress2)
+            controller.scanning_3d(self.input_data, self.thread_signal)
 
 
 if __name__ == '__main__':
