@@ -12,8 +12,8 @@ import warnings
 
 # NI-DAQmx 2025 Q1 has to be installed on the executing pc to run the scan.
 # NI-DAQmx 2025 Q1 download: https://www.ni.com/en/support/downloads/drivers/download.ni-daq-mx.html?srsltid=AfmBOooJ-Ko5HpJHEr4yPzQEZKufBWdBc1JjWhomtdJ27QKXivgjvTBr#559060
-# TODO: Specify exceptions
-
+# TODO: Change saving file management
+# TODO: Test functionality
 
 def _find_range(start, stop, step):
     dx = int(abs((stop - start)) / step + 1)
@@ -45,130 +45,86 @@ def _days_hours_minutes_seconds(dt):
     )
 
 
-def scan_1d(motors, input_data, on_progress, on_progress2):
-    motor_1 = motors[1]
-    motor_2 = motors[2]
-    motor_3 = motors[3]
-    progress_count = 0
-    print("1D measurement in progress...")
-    # _____________________________________Cycle___________________________________
-    angles = [0, 0, 0]
+def _conduct_measurement(number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position):
+    with nidaqmx.Task() as task:
+        task.ai_channels.add_ai_voltage_chan("myDAQ1/ai0:1")
+        task.timing.cfg_samp_clk_timing(
+            100000,
+            source="",
+            active_edge=Edge.RISING,
+            sample_mode=AcquisitionType.FINITE,
+            samps_per_chan=10)
 
-    name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
-    print("Writing", name)
+    n = 0
 
-    m1_from = float(input_data[0])
-    s1 = 1
+    column_names = ["a", "b", "c", "d", "e"]
+    measurement_data = pd.DataFrame(columns=column_names)
 
-    m2_from = float(input_data[3])
-    s2 = 1
+    while n < int(number_of_measurement_points):
+        sensor_data = [420, 69]  # task.read()
+        data = {
+            "a": [motor_1_position],
+            "b": [motor_2_position],
+            "c": [motor_3_position],
+            "d": [sensor_data[0]],
+            "e": [sensor_data[1]]}
+        current_scan = pd.DataFrame(data)
+        measurement_data = pd.concat((measurement_data, current_scan), axis=0)
 
-    m3_step = float(input_data[8])
+        # To prevent pandas FutureWarning spam:
+        warnings.simplefilter(action='ignore', category=FutureWarning)
 
-    maximum = (len(_find_range(m1_from, m1_from, s1))
-               * len(_find_range(m2_from, m2_from, s2))
-               * len(_find_range_double(m3_step)))
-    print("Max = ", maximum)
+        n += 1
 
-    for i in _find_range(m1_from, m1_from, s1):
-        motor_1.move_to_position(i)
-
-        angles[0] = i
-
-        for j in _find_range(m2_from, m2_from, s2):
-            motor_2.move_to_position(j)
-
-            angles[1] = j
-
-            for k in _find_range_double(m3_step):
-                c1 = time.time()
-                motor_3.move_to_position(k)
-
-                angles[2] = k
-
-                m1 = angles[0]
-                m2 = angles[1]
-                m3 = angles[2]
-                print("set angles")
-
-                with nidaqmx.Task() as task:
-                    task.ai_channels.add_ai_voltage_chan("myDAQ1/ai0:1")
-                    task.timing.cfg_samp_clk_timing(
-                        100000, source="", active_edge=Edge.RISING, sample_mode=AcquisitionType.FINITE,
-                        samps_per_chan=10)
-
-                    n = 0
-                    measurement_points = input_data[9]
-                    print("num = ", int(measurement_points))
-                    print(type(measurement_points))
-
-                    column_names = ["a", "b", "c", "d", "e"]
-                    df = pd.DataFrame(columns=column_names)
-
-                    while n < int(measurement_points):
-                        aaa = task.read()
-                        data = {
-                            "a": [m1],
-                            "b": [m2],
-                            "c": [m3],
-                            "d": [aaa[0]],
-                            "e": [aaa[1]],
-                        }
-                        dp = pd.DataFrame(data)
-                        df = pd.concat((df, dp), axis=0)
-                        n += 1
-
-                df2 = df.mean()
-                print("m1:", df2.iloc[0], " m2:", df2.iloc[1], " m3:", df2.iloc[2])
-                print(
-                    "prumer Signal1:",
-                    df2.iloc[3],
-                    " a prumer Signal2:",
-                    df2.iloc[4],
-                )
-                pomer = df2.iloc[3] / df2.iloc[4]
-                print("Pomer je:", pomer)
-
-                with open(name, "a") as f:
-                    line = "{};{};{};{};{};{}".format(df2.iloc[0], df2.iloc[1], df2.iloc[2], df2.iloc[3], df2.iloc[4],
-                                                      pomer)
-                    print(line, file=f)
-
-                progress_count += 1
-                print("Progres count: ", progress_count)
-                actual_progress = (100 / maximum) * progress_count
-                print("Progress: ", actual_progress, " %")
-                on_progress.emit(actual_progress)  # vyslani signalu
-
-                c2 = time.time()
-                dt = c2 - c1
-                dn = maximum - progress_count
-                dm = dt * dn
-                dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
-                print("dn = ", dn)
-                print("dm = ", dm)
-                on_progress2.emit(dm)  # vyslani signalu
-                delta = timedelta(seconds=dm)
-                (
-                    days,
-                    hours,
-                    minutes,
-                    seconds,
-                ) = _days_hours_minutes_seconds(delta)
-                print(
-                    "Time to finish: ",
-                    days,
-                    "d",
-                    hours,
-                    "h",
-                    minutes,
-                    "m",
-                    seconds,
-                    "s",
-                )
+    measurement_data = measurement_data.mean()
+    print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
+    print(
+        "prumer Signal1:",
+        measurement_data.iloc[3],
+        " a prumer Signal2:",
+        measurement_data.iloc[4],
+    )
+    data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
+    print("Pomer je:", data_ratio)
+    return measurement_data, data_ratio
 
 
-def scan_3d(motors, input_data, on_progress, on_progress2):
+def _save_file(name, data, data_ratio):
+    with open(name, "a") as f:
+        line = "{};{};{};{};{};{}".format(data.iloc[0],
+                                          data.iloc[1],
+                                          data.iloc[2],
+                                          data.iloc[3],
+                                          data.iloc[4],
+                                          data_ratio)
+        print(line, file=f)
+
+
+def _update_progressbar(progress_count, start_time, full_range, thread_signal):
+    print("Progres count: ", progress_count)
+    progress = (100 / full_range) * progress_count
+    print("Progress: ", progress, " %")
+
+    stop_time = time.time()
+    dt = stop_time - start_time
+    remaining_positions = full_range - progress_count
+    time_to_finish = dt * remaining_positions
+    time_to_finish = (time_to_finish / 20) + time_to_finish  # +20% na prejezdy M1 a M2
+    print("Remaining positions = ", remaining_positions)
+    print("Time to finish = ", time_to_finish)
+    delta = timedelta(seconds=time_to_finish)
+    (days, hours, minutes, seconds) = _days_hours_minutes_seconds(delta)
+    print("Time to finish: ", days, "d", hours, "h", minutes, "m", seconds, "s")
+    output_signal = [progress, time_to_finish]
+    thread_signal.emit(output_signal)  # vyslani signalu
+
+
+def scan_1d(motors, input_data, thread_signal):
+    input_data = [input_data[0], input_data[0], input_data[2], input_data[3], input_data[3], input_data[5], 270, 90, input_data[8], input_data[9], input_data[10]]
+    scan_3d(motors, input_data, thread_signal)
+
+
+def scan_3d(motors, input_data, thread_signal):
     motor_1 = motors[1]
     motor_2 = motors[2]
     motor_3 = motors[3]
@@ -176,7 +132,6 @@ def scan_3d(motors, input_data, on_progress, on_progress2):
 
     print("3D measurement in progress...")
 
-    # _____________________________________Cycle 3D START !!!!!___________________________________
     angles = [0, 0, 0]
 
     name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
@@ -198,6 +153,13 @@ def scan_3d(motors, input_data, on_progress, on_progress2):
     motor_3_range = _find_range(motor_3_from, motor_3_to, motor_3_step)
     print("Motor 3 range:", motor_3_range)
 
+    # Temporary solution:
+    if input_data[10]:
+        first_half = _find_range(270, 360, motor_3_step)
+        second_half = _find_range(0, 90, motor_3_step)
+        motor_3_range = np.concatenate((first_half, second_half), axis=0)
+        motor_3_range = np.delete(motor_3_range, np.where(motor_3_range == 0))
+
     full_range = (len(motor_1_range) * len(motor_2_range) * len(motor_3_range))
 
     number_of_measurement_points = input_data[9]
@@ -213,7 +175,7 @@ def scan_3d(motors, input_data, on_progress, on_progress2):
             angles[1] = j
 
             for k in motor_3_range:
-                c1 = time.time()
+                scan_start_time = time.time()
                 motor_3.move_to_position(k)
 
                 angles[2] = k
@@ -222,81 +184,12 @@ def scan_3d(motors, input_data, on_progress, on_progress2):
                 motor_2_position = angles[1]
                 motor_3_position = angles[2]
 
-                with nidaqmx.Task() as task:
-                    task.ai_channels.add_ai_voltage_chan("myDAQ1/ai0:1")
-                    task.timing.cfg_samp_clk_timing(
-                        100000,
-                        source="",
-                        active_edge=Edge.RISING,
-                        sample_mode=AcquisitionType.FINITE,
-                        samps_per_chan=10)
-
-                n = 0
-
-                column_names = ["a", "b", "c", "d", "e"]
-                measurement_data = pd.DataFrame(columns=column_names)
-
-                while n < int(number_of_measurement_points):
-                    sensor_data = [420, 69]  # task.read()
-                    data = {
-                        "a": [motor_1_position],
-                        "b": [motor_2_position],
-                        "c": [motor_3_position],
-                        "d": [sensor_data[0]],
-                        "e": [sensor_data[1]]}
-                    current_scan = pd.DataFrame(data)
-                    measurement_data = pd.concat((measurement_data, current_scan), axis=0)
-
-                    # To prevent pandas FutureWarning spam:
-                    warnings.simplefilter(action='ignore', category=FutureWarning)
-
-                    n += 1
-
-                df2 = measurement_data.mean()
-                print("m1:", df2.iloc[0], " m2:", df2.iloc[1], " m3:", df2.iloc[2])
-                print(
-                    "prumer Signal1:",
-                    df2.iloc[3],
-                    " a prumer Signal2:",
-                    df2.iloc[4],
-                )
-                pomer = df2.iloc[3] / df2.iloc[4]
-                print("Pomer je:", pomer)
-
-                with open(name, "a") as f:
-                    line = "{};{};{};{};{};{}".format(df2.iloc[0], df2.iloc[1], df2.iloc[2], df2.iloc[3], df2.iloc[4], pomer)
-                    print(line, file=f)
+                measurement_data, data_ratio = _conduct_measurement(
+                    number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position)
 
                 progress_count += 1
-                print("Progres count: ", progress_count)
-                actual_progress = (100 / full_range) * progress_count
-                print("Progress: ", actual_progress, " %")
-                on_progress.emit(actual_progress)  # vyslani signalu
+                _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
 
-                c2 = time.time()
-                dt = c2 - c1
-                dn = full_range - progress_count
-                dm = dt * dn
-                dm = (dm / 20) + dm  # +20% na prejezdy M1 a M2
-                print("dn = ", dn)
-                print("dm = ", dm)
-                on_progress2.emit(dm)  # vyslani signalu
-                delta = timedelta(seconds=dm)
-                (
-                    days,
-                    hours,
-                    minutes,
-                    seconds,
-                ) = _days_hours_minutes_seconds(delta)
-                print(
-                    "Time to finish: ",
-                    days,
-                    "d",
-                    hours,
-                    "h",
-                    minutes,
-                    "m",
-                    seconds,
-                    "s",
-                )
+                _save_file(name, measurement_data, data_ratio)
+
     print("Done")
