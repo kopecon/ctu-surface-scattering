@@ -326,6 +326,7 @@ class Window(QMainWindow):
         # Does not work with "SpaceBar" key.
         if isinstance(event, QKeyEvent) and any(worker.isRunning() for worker in self.workers):
             self.stop_motors()
+            self._connection_button.setText('Connect')
 
     #  ---------------------------------------------------------------------------------------    Motor moving functions
     def start_homing(self, motor_id):
