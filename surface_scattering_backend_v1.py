@@ -10,6 +10,10 @@ from msl.equipment.resources.thorlabs import MotionControl
 from _surface_scattering_scan import scan_1d, scan_3d
 
 
+# Editable Parameters:
+hardware_limit_margin = 5  # How far [deg] beyond limit can device legally move without stopping.
+
+
 class MotorController:
     """
     Class representing the motor controller hardware. Through this class you can control the motor setup as a whole set.
@@ -73,9 +77,9 @@ class MotorController:
             self.motor_3 = self.motors[3]  # Motor holding the sensor
             print("Connection done.")
             # Set the hardware limits of each motor independently
-            self.motor_1.hardware_limits = (270, 90)
-            self.motor_2.hardware_limits = (0, 270)
-            self.motor_3.hardware_limits = (270, 90)
+            self.motor_1.hardware_limits = (270-hardware_limit_margin, 90+hardware_limit_margin)
+            self.motor_2.hardware_limits = (0-hardware_limit_margin, 270+hardware_limit_margin)
+            self.motor_3.hardware_limits = (270-hardware_limit_margin, 90+hardware_limit_margin)
             print("Motor settings loaded.")
             return 0  # Successful
         except OSError:
