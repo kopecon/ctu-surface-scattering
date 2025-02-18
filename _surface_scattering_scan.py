@@ -173,13 +173,12 @@ def scan_3d(motors, input_data, thread_signal):
                 motor_2_position = angles[1]
                 motor_3_position = angles[2]
 
-                if _conduct_measurement(number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position) is not None:
-                    measurement_data, data_ratio = _conduct_measurement(
+                measurement_data, data_ratio = _conduct_measurement(
                     number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position)
 
-                    progress_count += 1
-                    _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
+                progress_count += 1
+                _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
 
-                    _save_file(name, measurement_data, data_ratio)
+                _save_file(name, measurement_data, data_ratio)
 
     print("Done")
