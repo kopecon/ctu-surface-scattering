@@ -407,7 +407,7 @@ class _Motor:
 
     def move_to_position(self, position):
         illegal_position = self._check_for_illegal_position(position)
-        print(self.get_velocity())
+        print(f"Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}")
         if not illegal_position:
             self._start_polling()
             position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
