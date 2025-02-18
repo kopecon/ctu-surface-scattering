@@ -206,6 +206,15 @@ class _Motor:
         else:
             return print("Settings need to be loaded first.")
 
+    def get_velocity(self):
+        # Default value for movement: vel = 50.0, acc = 25.0003
+        velocity_d_u, acceleration_d_u = self._parent_controller.get_vel_params(self.motor_id)
+        velocity_real = self._parent_controller.get_real_value_from_device_unit(
+            self.motor_id, velocity_d_u, "VELOCITY")
+        acceleration_real = self._parent_controller.get_real_value_from_device_unit(
+            self.motor_id, acceleration_d_u, "ACCELERATION")
+        return velocity_real, acceleration_real
+
     def get_homing_velocity(self):
         if self.settings_loaded:
             velocity_device_units = self._parent_controller.get_homing_velocity(self.motor_id)
@@ -398,6 +407,7 @@ class _Motor:
 
     def move_to_position(self, position):
         illegal_position = self._check_for_illegal_position(position)
+        print(self.get_velocity())
         if not illegal_position:
             self._start_polling()
             position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
