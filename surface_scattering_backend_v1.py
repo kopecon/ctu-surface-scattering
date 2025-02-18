@@ -171,7 +171,7 @@ class _Motor:
                     break
 
         self.is_moving = False
-        self.set_velocity(velocity=20, acceleration=30)  # TODO: find default velocity params
+        self.set_velocity(velocity=50, acceleration=25)  # Set default velocity parameters
         if self.motor_id != 2:
             self.set_rotation_mode(mode=2, direction=0)  # Return to quickest pathing mode
         time.sleep(0.5)
@@ -207,7 +207,7 @@ class _Motor:
             return print("Settings need to be loaded first.")
 
     def get_velocity(self):
-        # Default value for movement: vel = 50.0, acc = 25.0003
+        # Default value for movement: vel = 50.0 deg/s, acc = 25.0003 deg/s/s  TODO: double check the units
         velocity_d_u, acceleration_d_u = self._parent_controller.get_vel_params(self.motor_id)
         velocity_real = self._parent_controller.get_real_value_from_device_unit(
             self.motor_id, velocity_d_u, "VELOCITY")
@@ -413,9 +413,13 @@ class _Motor:
             position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                               position,
                                                                                               "DISTANCE")
+            start_time = time.time()
             self._parent_controller.move_to_position(self.motor_id, position_in_device_unit)
             self._while_moving_do(1)
             self._stop_polling()
+            end_time = time.time()
+            duration = abs(end_time - start_time)
+            print("Movement duration:", duration)
 
             if self.motor_id != 2:
                 if self.reached_left_limit and not self.is_moving:
