@@ -12,7 +12,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QCheckBox,
 )
-
+# TODO: Add user input limitations based on the hardware limit. Forbid user to input illegal positions.
+# TODO: Add function: Dynamic range calibration, graphing.
 # System libraries
 import sys
 from datetime import timedelta
