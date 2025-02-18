@@ -48,48 +48,51 @@ def _days_hours_minutes_seconds(dt):
 def _conduct_measurement(number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position):
     try:
         with nidaqmx.Task() as task:
-            task.ai_channels.add_ai_voltage_chan("myDAQ1/ai0:1")
+            task.ai_channels.add_ai_voltage_chan(
+                "myDAQ1/ai0:1"
+            )
             task.timing.cfg_samp_clk_timing(
                 100000,
                 source="",
                 active_edge=Edge.RISING,
                 sample_mode=AcquisitionType.FINITE,
-                samps_per_chan=10)
+                samps_per_chan=10,
+            )
 
-        n = 0
+            n = 0
 
-        column_names = ["a", "b", "c", "d", "e"]
-        measurement_data = pd.DataFrame(columns=column_names)
+            column_names = ["a", "b", "c", "d", "e"]
+            measurement_data = pd.DataFrame(columns=column_names)
 
-        while n < int(number_of_measurement_points):
-            sensor_data = task.read()
-            data = {
-                "a": [motor_1_position],
-                "b": [motor_2_position],
-                "c": [motor_3_position],
-                "d": [sensor_data[0]],
-                "e": [sensor_data[1]]}
-            current_scan = pd.DataFrame(data)
-            measurement_data = pd.concat((measurement_data, current_scan), axis=0)
+            while n < int(number_of_measurement_points):
+                sensor_data = task.read()
+                data = {
+                    "a": [motor_1_position],
+                    "b": [motor_2_position],
+                    "c": [motor_3_position],
+                    "d": [sensor_data[0]],
+                    "e": [sensor_data[1]]}
+                current_scan = pd.DataFrame(data)
+                measurement_data = pd.concat((measurement_data, current_scan), axis=0)
 
-            # To prevent pandas FutureWarning spam:
-            warnings.simplefilter(action='ignore', category=FutureWarning)
+                # To prevent pandas FutureWarning spam:
+                warnings.simplefilter(action='ignore', category=FutureWarning)
 
-            n += 1
+                n += 1
 
-        measurement_data = measurement_data.mean()
-        print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
-        print(
-            "prumer Signal1:",
-            measurement_data.iloc[3],
-            " a prumer Signal2:",
-            measurement_data.iloc[4],
-        )
-        data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
-        print("Pomer je:", data_ratio)
-        return measurement_data, data_ratio
+            measurement_data = measurement_data.mean()
+            print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
+            print(
+                "prumer Signal1:",
+                measurement_data.iloc[3],
+                " a prumer Signal2:",
+                measurement_data.iloc[4],
+            )
+            data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
+            print("Pomer je:", data_ratio)
+            return measurement_data, data_ratio
     except:
-        # TODO: Why do we need exception, specify
+        # TODO: Why do we need exception, specify. Once Task() ran, Try block not necessary ... why?
         print("Passed exception")
 
 
