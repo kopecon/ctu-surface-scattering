@@ -10,6 +10,8 @@ from datetime import datetime
 import warnings
 
 
+# Merging test
+
 # NI-DAQmx 2025 Q1 has to be installed on the executing pc to run the scan.
 # NI-DAQmx 2025 Q1 download: https://www.ni.com/en/support/downloads/drivers/download.ni-daq-mx.html?srsltid=AfmBOooJ-Ko5HpJHEr4yPzQEZKufBWdBc1JjWhomtdJ27QKXivgjvTBr#559060
 # TODO: Change saving file management
