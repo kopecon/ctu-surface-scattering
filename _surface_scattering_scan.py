@@ -20,20 +20,6 @@ def _find_range(start, stop, step):
     return np.linspace(start, stop, endpoint=True, num=dx)
 
 
-def _find_range_double(step):
-    start1 = 270
-    stop1 = 360
-    start2 = 0
-    stop2 = 90
-    dx1 = int((stop1 - start1) / step)
-    dx2 = int((stop2 - start2) / step)
-    point1 = np.linspace(start1, stop1, endpoint=True, num=dx1 + 1)
-    point2 = np.linspace(start2, stop2, endpoint=True, num=dx2 + 1)
-    point0 = np.concatenate((point1, point2))
-    point = np.delete(point0, np.where(point0 == 360))
-    return point
-
-
 def _days_hours_minutes_seconds(dt):
     return (
         dt.days,  # days
