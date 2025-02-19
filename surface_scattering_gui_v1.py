@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QGridLayout,
     QLineEdit,
-    QCheckBox,
+    QCheckBox, QFrame,
 )
 # TODO: Add user input limitations based on the hardware limit. Forbid user to input illegal positions.
 # TODO: Add function: Dynamic range calibration, graphing.
@@ -70,7 +70,7 @@ class Window(QMainWindow):
         _central_widget.setLayout(self._layout)
 
         self.setWindowTitle("Surface Scattering Measurement")
-        self.setFixedSize(QSize(600, 600))
+        self.setFixedSize(QSize(620, 600))
 
         # Measurement arguments:
         self._input_data = []
@@ -81,24 +81,31 @@ class Window(QMainWindow):
         self.workers = []
 
         # Labels
-        _label_motor_setup_title = self._label("Motors Setup:")
+        _label_controller_setup_title = self._label("Controller:")
+        _label_motor_setup_title = self._label("Motors:")
 
         self._label_m1_from = self._label("From")  # Text is being changed => self.
         _label_m1_to = self._label("To")
         _label_m1_step = self._label("Step")
-        _label_m1 = self._label("Motor 1")
+        _label_m1_position = self._label("Position")
+        _label_m1 = self._label("Motor 1   ")
+        _label_m1.setStyleSheet("qproperty-alignment: AlignRight;")
 
         self._label_m2_from = self._label("From")
         _label_m2_to = self._label("To")
         _label_m2_step = self._label("Step")
-        _label_m2 = self._label("Motor 2")
+        _label_m2_position = self._label("Position")
+        _label_m2 = self._label("Motor 2   ")
+        _label_m2.setStyleSheet("qproperty-alignment: AlignRight;")
 
         _label_m3_from = self._label("From")
         _label_m3_to = self._label("To")
         _label_m3_step = self._label("Step")
-        _label_m3 = self._label("Motor 3")
+        _label_m3_position = self._label("Position")
+        _label_m3 = self._label("Motor 3    ")
+        _label_m3.setStyleSheet("qproperty-alignment: AlignRight;")
 
-        _label_measurement_setup_title = self._label("Measurement Setup:")
+        _label_measurement_setup_title = self._label("Measurement:")
 
         _label_measurement_num = self._label("Measurement points")
         _label_measurement_n = self._label("[n]")
@@ -118,14 +125,17 @@ class Window(QMainWindow):
         self._m1_from_value = self._line_edit("0")
         self._m1_to_value = self._line_edit("90")
         self._m1_step_value = self._line_edit("30")
+        self._m1_move_to_value = self._line_edit("0")
 
         self._m2_from_value = self._line_edit("90")
         self._m2_to_value = self._line_edit("180")
         self._m2_step_value = self._line_edit("30")
+        self._m2_move_to_value = self._line_edit("0")
 
         self._m3_from_value = self._line_edit("0")
         self._m3_to_value = self._line_edit("90")
         self._m3_step_value = self._line_edit("30")
+        self._m3_move_to_value = self._line_edit("0")
 
         self._number_of_measurement_points_value = self._line_edit("500")
 
@@ -148,9 +158,9 @@ class Window(QMainWindow):
         self._home_all.clicked.connect(lambda: self.start_homing(1))
         self._home_all.clicked.connect(lambda: self.start_homing(2))
         self._home_all.clicked.connect(lambda: self.start_homing(3))
-        self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._m1_to_value.text())))
-        self._move_2_to.clicked.connect(lambda: self.move_to(2, float(self._m2_to_value.text())))
-        self._move_3_to.clicked.connect(lambda: self.move_to(3, float(self._m3_to_value.text())))
+        self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._m1_move_to_value.text())))
+        self._move_2_to.clicked.connect(lambda: self.move_to(2, float(self._m2_move_to_value.text())))
+        self._move_3_to.clicked.connect(lambda: self.move_to(3, float(self._m3_move_to_value.text())))
         self._stop.clicked.connect(lambda: self.stop_motors())
         self._scan.clicked.connect(lambda: self.start_scanning())
         self._connection_button.clicked.connect(lambda: self.connect_devices())
@@ -159,8 +169,8 @@ class Window(QMainWindow):
         self._progress_bar = self._progress_bar(0)
 
         # Checkbox
-        self._measurement_1d = QCheckBox("1D Measurement", self)
-        self._measurement_3d = QCheckBox("3D Measurement", self)
+        self._measurement_1d = QCheckBox("1D", self)
+        self._measurement_3d = QCheckBox("3D", self)
         self._measurement_1d.setChecked(False)
         self._measurement_3d.setChecked(True)
         self._measurement_3d.setEnabled(False)
@@ -171,51 +181,65 @@ class Window(QMainWindow):
         logo = self._create_logo()
 
         # Place and display created widgets
-        self._layout.addWidget(_label_motor_setup_title, 0, 0, 1, 1)
-        self._layout.addWidget(self._label_m1_from, 1, 1, 1, 1)
-        self._layout.addWidget(_label_m1_to, 1, 2, 1, 1)
-        self._layout.addWidget(_label_m1_step, 1, 3, 1, 1)
-        self._layout.addWidget(_label_m1, 2, 0, 1, 1)
-        self._layout.addWidget(self._label_m2_from, 3, 1, 1, 1)
-        self._layout.addWidget(_label_m2_to, 3, 2, 1, 1)
-        self._layout.addWidget(_label_m2_step, 3, 3, 1, 1)
-        self._layout.addWidget(_label_m2, 4, 0, 1, 1)
-        self._layout.addWidget(_label_m3_from, 5, 1, 1, 1)
-        self._layout.addWidget(_label_m3_to, 5, 2, 1, 1)
-        self._layout.addWidget(_label_m3_step, 5, 3, 1, 1)
-        self._layout.addWidget(_label_m3, 6, 0, 1, 1)
-        self._layout.addWidget(_label_measurement_setup_title, 7, 0, 1, 1)
-        self._layout.addWidget(_label_measurement_num, 8, 1, 1, 1)
-        self._layout.addWidget(_label_measurement_n, 8, 3, 1, 1)
-        self._layout.addWidget(_label_scan_type, 9, 1, 1, 1)
-        self._layout.addWidget(_label_home_title, 13, 0, 1, 1)
-        self._layout.addWidget(_label_time_to_finish_title, 11, 1, 1, 1)
-        self._layout.addWidget(self._label_time_to_finish_value, 11, 2, 1, 1)
-        self._layout.addWidget(self._m1_from_value, 2, 1, 1, 1)
-        self._layout.addWidget(self._m1_to_value, 2, 2, 1, 1)
-        self._layout.addWidget(self._m1_step_value, 2, 3, 1, 1)
-        self._layout.addWidget(self._m2_from_value, 4, 1, 1, 1)
-        self._layout.addWidget(self._m2_to_value, 4, 2, 1, 1)
-        self._layout.addWidget(self._m2_step_value, 4, 3, 1, 1)
-        self._layout.addWidget(self._m3_from_value, 6, 1, 1, 1)
-        self._layout.addWidget(self._m3_to_value, 6, 2, 1, 1)
-        self._layout.addWidget(self._m3_step_value, 6, 3, 1, 1)
-        self._layout.addWidget(self._number_of_measurement_points_value, 8, 2, 1, 1)
-        self._layout.addWidget(self._scan, 10, 1, 1, 3)
-        self._layout.addWidget(self._connection_button, 0, 1, 1, 1)
-        self._layout.addWidget(self._home1, 14, 1, 1, 1)
-        self._layout.addWidget(self._home2, 14, 2, 1, 1)
-        self._layout.addWidget(self._home3, 14, 3, 1, 1)
-        self._layout.addWidget(self._home_all, 15, 2, 1, 1)
-        self._layout.addWidget(self._move_1_to, 2, 4, 1, 1)
-        self._layout.addWidget(self._move_2_to, 4, 4, 1, 1)
-        self._layout.addWidget(self._move_3_to, 6, 4, 1, 1)
-        self._layout.addWidget(self._stop, 0, 3, 1, 1)
-        self._layout.addWidget(self._progress_bar, 12, 1, 1, 3)
-        self._layout.addWidget(_label_url, 16, 3, 1, 2)
-        self._layout.addWidget(logo, 0, 4, 1, 2)
-        self._layout.addWidget(self._measurement_1d, 9, 2, 1, 1)
-        self._layout.addWidget(self._measurement_3d, 9, 3, 1, 1)
+        self._layout.addWidget(self._connection_button, 0, 2, 1, 1)
+        self._layout.addWidget(self._stop, 0, 4, 1, 1)
+        self._layout.addWidget(logo, 0, 7, 1, 2)
+        self._layout.addWidget(_label_controller_setup_title, 0, 0, 1, 2)
+        self._layout.addWidget(QHLine(), 1, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_label_motor_setup_title, 2, 0, 1, 1)
+        self._layout.addWidget(self._label_m1_from, 3, 2, 1, 1)
+        self._layout.addWidget(_label_m1_to, 3, 3, 1, 1)
+        self._layout.addWidget(_label_m1_step, 3, 4, 1, 1)
+        self._layout.addWidget(_label_m1_position, 3, 6, 1, 1)
+        self._layout.addWidget(_label_m1, 4, 1, 1, 1)
+        self._layout.addWidget(self._m1_from_value, 4, 2, 1, 1)
+        self._layout.addWidget(self._m1_to_value, 4, 3, 1, 1)
+        self._layout.addWidget(self._m1_step_value, 4, 4, 1, 1)
+        self._layout.addWidget(QVLine(), 4, 5, 1, 1)
+        self._layout.addWidget(self._m1_move_to_value, 4, 6, 1, 1)
+        self._layout.addWidget(self._move_1_to, 4, 7, 1, 1)
+        self._layout.addWidget(self._label_m2_from, 5, 2, 1, 1)
+        self._layout.addWidget(_label_m2_to, 5, 3, 1, 1)
+        self._layout.addWidget(_label_m2_step, 5, 4, 1, 1)
+        self._layout.addWidget(_label_m2_position, 5, 6, 1, 1)
+        self._layout.addWidget(_label_m2, 6, 1, 1, 1)
+        self._layout.addWidget(self._m2_from_value, 6, 2, 1, 1)
+        self._layout.addWidget(self._m2_to_value, 6, 3, 1, 1)
+        self._layout.addWidget(self._m2_step_value, 6, 4, 1, 1)
+        self._layout.addWidget(QVLine(), 6, 5, 1, 1)
+        self._layout.addWidget(self._m2_move_to_value, 6, 6, 1, 1)
+        self._layout.addWidget(self._move_2_to, 6, 7, 1, 1)
+        self._layout.addWidget(_label_m3_from, 7, 2, 1, 1)
+        self._layout.addWidget(_label_m3_to, 7, 3, 1, 1)
+        self._layout.addWidget(_label_m3_step, 7, 4, 1, 1)
+        self._layout.addWidget(_label_m3_position, 7, 6, 1, 1)
+        self._layout.addWidget(_label_m3, 8, 1, 1, 1)
+        self._layout.addWidget(self._m3_from_value, 8, 2, 1, 1)
+        self._layout.addWidget(self._m3_to_value, 8, 3, 1, 1)
+        self._layout.addWidget(self._m3_step_value, 8, 4, 1, 1)
+        self._layout.addWidget(QVLine(), 8, 5, 1, 1)
+        self._layout.addWidget(self._m3_move_to_value, 8, 6, 1, 1)
+        self._layout.addWidget(self._move_3_to, 8, 7, 1, 1)
+        self._layout.addWidget(QHLine(), 9, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_label_measurement_setup_title, 10, 0, 1, 1)
+        self._layout.addWidget(_label_measurement_num, 11, 2, 1, 1)
+        self._layout.addWidget(self._number_of_measurement_points_value, 11, 3, 1, 1)
+        self._layout.addWidget(_label_measurement_n, 11, 4, 1, 1)
+        self._layout.addWidget(_label_scan_type, 12, 2, 1, 1)
+        self._layout.addWidget(self._measurement_1d, 12, 3, 1, 1)
+        self._layout.addWidget(self._measurement_3d, 12, 4, 1, 1)
+        self._layout.addWidget(self._scan, 13, 2, 1, 3)
+        self._layout.addWidget(_label_time_to_finish_title, 14, 2, 1, 1)
+        self._layout.addWidget(self._label_time_to_finish_value, 14, 3, 1, 1)
+        self._layout.addWidget(self._progress_bar, 15, 2, 1, 3)
+        self._layout.addWidget(QHLine(), 16, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_label_home_title, 17, 0, 1, 1)
+        self._layout.addWidget(self._home1, 18, 2, 1, 1)
+        self._layout.addWidget(self._home2, 18, 3, 1, 1)
+        self._layout.addWidget(self._home3, 18, 4, 1, 1)
+        self._layout.addWidget(self._home_all, 19, 3, 1, 1)
+        self._layout.addWidget(_label_url, 20, 5, 1, self._layout.columnCount())
+        self._layout.addWidget(QHLine(), 21, 0, 1, self._layout.columnCount())
 
         self._connect_on_start()  # Try connecting to the measurement device
 
@@ -477,6 +501,21 @@ class ScanningThread(QThread):
         elif self.scan_3d:
             print("3D scanning.")
             controller.scanning_3d(self.input_data, self.thread_signal)
+
+
+class QHLine(QFrame):
+    def __init__(self):
+        super(QHLine, self).__init__()
+        self.setFrameShape(QFrame.Shape.HLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+
+
+class QVLine(QFrame):
+    def __init__(self):
+        super(QVLine, self).__init__()
+        self.setFrameShape(QFrame.Shape.VLine)
+        self.setFrameShadow(QFrame.Shadow.Sunken)
+        self.setFixedSize(self.frameWidth(), 30)
 
 
 if __name__ == '__main__':
