@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 from datetime import timedelta
 import nidaqmx
@@ -21,71 +23,85 @@ def _find_range(start, stop, step):
 
 
 def _days_hours_minutes_seconds(dt):
-    return (
-        dt.days,  # days
-        dt.seconds // 3600,  # hours
-        (dt.seconds // 60) % 60,  # minutes
-        dt.seconds
-        - ((dt.seconds // 3600) * 3600)
-        - ((dt.seconds % 3600 // 60) * 60)  # seconds
-    )
+    days = dt.days
+    hours = dt.seconds // 3600
+    minutes = (dt.seconds // 60) % 60
+    seconds = dt.seconds - ((dt.seconds // 3600) * 3600) - ((dt.seconds % 3600 // 60) * 60)
+    return days, hours, minutes, seconds
 
 
 def _conduct_measurement(number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position):
-    with nidaqmx.Task() as task:
-        task.ai_channels.add_ai_voltage_chan(
-            "myDAQ1/ai0:1"
-        )
-        task.timing.cfg_samp_clk_timing(
-            100000,
-            source="",
-            active_edge=Edge.RISING,
-            sample_mode=AcquisitionType.FINITE,
-            samps_per_chan=10,
-        )
+    try:
+        with nidaqmx.Task() as task:
+            task.ai_channels.add_ai_voltage_chan(
+                "myDAQ1/ai0:1"
+            )
+            task.timing.cfg_samp_clk_timing(
+                100000,
+                source="",
+                active_edge=Edge.RISING,
+                sample_mode=AcquisitionType.FINITE,
+                samps_per_chan=10,
+            )
 
-        n = 0
+            n = 0
 
-        column_names = ["a", "b", "c", "d", "e"]
-        measurement_data = pd.DataFrame(columns=column_names)
+            column_names = ["a", "b", "c", "d", "e"]
+            measurement_data = pd.DataFrame(columns=column_names)
 
-        while n < int(number_of_measurement_points):
-            sensor_data = task.read()
-            data = {
-                "a": [motor_1_position],
-                "b": [motor_2_position],
-                "c": [motor_3_position],
-                "d": [sensor_data[0]],
-                "e": [sensor_data[1]]}
-            current_scan = pd.DataFrame(data)
-            measurement_data = pd.concat((measurement_data, current_scan), axis=0)
+            while n < int(number_of_measurement_points):
+                sensor_data = task.read()
+                data = {
+                    "a": [motor_1_position],
+                    "b": [motor_2_position],
+                    "c": [motor_3_position],
+                    "d": [sensor_data[0]],
+                    "e": [sensor_data[1]]}
+                current_scan = pd.DataFrame(data)
+                measurement_data = pd.concat((measurement_data, current_scan), axis=0)
 
-            # To prevent pandas FutureWarning spam:
-            warnings.simplefilter(action='ignore', category=FutureWarning)
+                # To prevent pandas FutureWarning spam:
+                warnings.simplefilter(action='ignore', category=FutureWarning)
 
-            n += 1
+                n += 1
 
-        measurement_data = measurement_data.mean()
-        print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
-        print(
-            "prumer Signal1:",
-            measurement_data.iloc[3],
-            " a prumer Signal2:",
-            measurement_data.iloc[4],
-        )
-        data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
-        print("Pomer je:", data_ratio)
+            measurement_data = measurement_data.mean()
+            print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
+            print(
+                "prumer Signal1:",
+                measurement_data.iloc[3],
+                " a prumer Signal2:",
+                measurement_data.iloc[4],
+            )
+            data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
+            print("Pomer je:", data_ratio)
+
+    except nidaqmx.errors.DaqNotFoundError:
+        # TODO: Remove try block after debugging
+        print("Unable to use the sensor, inserting fake data.")
+        data = np.array([420, 69, 420, 69, 420])
+        measurement_data = pd.DataFrame(data)
+        data_ratio = 1.420
+
         return measurement_data, data_ratio
 
 
-def _save_file(name, data, data_ratio):
-    with open(name, "a") as f:
-        line = "{};{};{};{};{};{}".format(data.iloc[0],
-                                          data.iloc[1],
-                                          data.iloc[2],
-                                          data.iloc[3],
-                                          data.iloc[4],
-                                          data_ratio)
+def _save_file(name, data, data_ratio, scan_type):
+    output_path = "./DataOutput/"
+    os.makedirs(output_path, exist_ok=True)
+
+    if scan_type == '1D':
+        if not os.path.exists(f"{output_path}/data_1D"):
+            os.makedirs(f"{output_path}/data_1D/")
+        output_path = f"{output_path}/data_1D/"
+    elif scan_type == '3D':
+        if not os.path.exists(f"{output_path}/data_3D"):
+            os.makedirs(f"{output_path}/data_3D/")
+        output_path = f"{output_path}/data_3D/"
+    print(scan_type)
+    print(output_path)
+    with open(f'{output_path}/{name}', "a") as f:
+        line = "{};{};{};{};{};{}".format(data.iloc[0], data.iloc[1], data.iloc[2], data.iloc[3], data.iloc[4], data_ratio)
         print(line, file=f)
 
 
@@ -100,31 +116,32 @@ def _update_progressbar(progress_count, start_time, full_range, thread_signal):
     time_to_finish = dt * remaining_positions
     time_to_finish = (time_to_finish / 20) + time_to_finish  # +20% na prejezdy M1 a M2
     print("Remaining positions = ", remaining_positions)
-    print("Time to finish = ", time_to_finish)
     delta = timedelta(seconds=time_to_finish)
     (days, hours, minutes, seconds) = _days_hours_minutes_seconds(delta)
     print("Time to finish: ", days, "d", hours, "h", minutes, "m", seconds, "s")
     output_signal = [progress, time_to_finish]
-    thread_signal.emit(output_signal)  # vyslani signalu
+    if hasattr(thread_signal, 'emit'):
+        thread_signal.emit(output_signal)
 
 
-def scan_1d(motors, input_data, thread_signal):
-    input_data = [input_data[0], input_data[0], input_data[2], input_data[3], input_data[3], input_data[5], 270, 90, input_data[8], input_data[9], input_data[10]]
-    scan_3d(motors, input_data, thread_signal)
-
-
-def scan_3d(motors, input_data, thread_signal):
-    motor_1 = motors[1]
-    motor_2 = motors[2]
-    motor_3 = motors[3]
-    progress_count = 0
-
+def scan(motors, input_data, thread_signal):
     print("3D measurement in progress...")
+
+    progress_count = 0
 
     angles = [0, 0, 0]
 
+    if input_data[10]:
+        scan_type = '1D'
+    else:
+        scan_type = '3D'
+
+    motor_1 = motors[1]
+    motor_2 = motors[2]
+    motor_3 = motors[3]
+
     name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
-    print("Writing", name)
+    print("Output file name:", name)
 
     motor_1_from = float(input_data[0])
     motor_1_to = float(input_data[1])
@@ -140,10 +157,9 @@ def scan_3d(motors, input_data, thread_signal):
     motor_3_to = float(input_data[7])
     motor_3_step = float(input_data[8])
     motor_3_range = _find_range(motor_3_from, motor_3_to, motor_3_step)
-    print("Motor 3 range:", motor_3_range)
 
-    # Temporary solution:
-    if input_data[10]:
+    # Finding range for motor 3
+    if scan_type == '1D':
         first_half = _find_range(270, 360, motor_3_step)
         second_half = _find_range(0, 90, motor_3_step)
         motor_3_range = np.concatenate((first_half, second_half), axis=0)
@@ -154,18 +170,21 @@ def scan_3d(motors, input_data, thread_signal):
     number_of_measurement_points = input_data[9]
 
     for i in motor_1_range:
-        motor_1.move_to_position(i)
+        if hasattr(motor_1, 'move_to_position'):
+            motor_1.move_to_position(i)
 
         angles[0] = i
 
         for j in motor_2_range:
-            motor_2.move_to_position(j)
+            if hasattr(motor_2, 'move_to_position'):
+                motor_2.move_to_position(j)
 
             angles[1] = j
 
             for k in motor_3_range:
                 scan_start_time = time.time()
-                motor_3.move_to_position(k)
+                if hasattr(motor_3, 'move_to_position'):
+                    motor_3.move_to_position(k)
 
                 angles[2] = k
 
@@ -179,6 +198,11 @@ def scan_3d(motors, input_data, thread_signal):
                 progress_count += 1
                 _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
 
-                _save_file(name, measurement_data, data_ratio)
+                _save_file(name, measurement_data, data_ratio, scan_type)
 
     print("Done")
+
+
+if __name__ == '__main__':
+    # Fake data for scan testing
+    scan([None, None, None, None], input_data=[0, 180, 30, 0, 180, 30, 0, 180, 30, 5, True], thread_signal=1)

@@ -7,7 +7,7 @@ from msl.equipment import (EquipmentRecord, ConnectionRecord, Backend)
 from msl.equipment.resources.thorlabs import MotionControl
 
 # Custom modules:
-from _surface_scattering_scan import scan_1d, scan_3d
+from _surface_scattering_scan import scan
 
 
 # Editable Parameters:
@@ -101,7 +101,7 @@ class MotorController:
         scan_1d(self.motors, input_data, thread_signal)
 
     def scanning_3d(self, input_data, thread_signal):
-        scan_3d(self.motors, input_data, thread_signal)
+        scan(self.motors, input_data, thread_signal)
 
     def stop_motors(self):
         print("Stopping motors!")
