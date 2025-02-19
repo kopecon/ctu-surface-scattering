@@ -245,6 +245,7 @@ class Window(QMainWindow):
 
     @staticmethod
     def _create_logo():
+        # This is not doing anything right now
         logo_png = QPixmap("NUMlogo_200x93.png")
         logo_png = logo_png.scaledToWidth(100, Qt.TransformationMode.SmoothTransformation)
         logo = QLabel()
@@ -253,6 +254,19 @@ class Window(QMainWindow):
         return logo
 
     # -----------------------------------------------------------------------------------------------    Widget handling
+    def get_window_widgets(self):
+        all_window_widgets = []
+        for i in range(self._layout.count()):
+            widget = self._layout.itemAt(i).widget()
+            all_window_widgets.append(widget)
+        return all_window_widgets
+
+    def _enable_every_widget(self):
+        widgets = self.get_window_widgets()
+        for widget in widgets:
+            if hasattr(widget, 'setEnabled'):
+                widget.setEnabled(True)
+
     def _restrict_value_editing_for_1d_measurement(self):
         self._measurement_1d.setEnabled(False)
         self._measurement_3d.setEnabled(True)
@@ -275,25 +289,17 @@ class Window(QMainWindow):
             self._m3_to_value.setEnabled(True)
 
     def _restrict_value_editing_for_3d_measurement(self):
-        # Enable every widget
-        widgets = self.get_window_widgets()
-        for widget in widgets:
-            if hasattr(widget, 'setEnabled'):
-                widget.setEnabled(True)
-
+        # First enable everything
+        self._enable_every_widget()
+        # Disable what is needed
         self._measurement_3d.setEnabled(False)
-        self._measurement_1d.setEnabled(True)
         self._measurement_1d.setChecked(False)
 
     def _update_layout_after_finished_scanning(self):
         self._progress_bar.setValue(0)
         # Enable every widget
-        widgets = self.get_window_widgets()
-        for widget in widgets:
-            if hasattr(widget, 'setEnabled'):
-                widget.setEnabled(True)
+        self._enable_every_widget()
 
-        self._measurement_1d.setEnabled(True)
         self._measurement_1d.setChecked(False)
         self._measurement_3d.setEnabled(False)
         self._measurement_3d.setChecked(True)
@@ -301,14 +307,7 @@ class Window(QMainWindow):
     def _update_progress_bar_label(self, finish_time):
         delta = timedelta(seconds=finish_time)
         (days, hours, minutes, seconds) = days_hours_minutes_seconds(delta)
-        n = (str(days)
-             + "d "
-             + str(hours)
-             + "h "
-             + str(minutes)
-             + "m "
-             + str(seconds)
-             + "s")
+        n = (str(days) + "d " + str(hours) + "h " + str(minutes) + "m " + str(seconds) + "s")
         self._label_time_to_finish_value.setText(n)
 
     def _update_progress_bar(self, signal: list[int, float]):
@@ -316,13 +315,6 @@ class Window(QMainWindow):
         finish_time = signal[1]
         self._progress_bar.setValue(progress)
         self._update_progress_bar_label(finish_time)
-
-    def get_window_widgets(self):
-        all_window_widgets = []
-        for i in range(self._layout.count()):
-            widget = self._layout.itemAt(i).widget()
-            all_window_widgets.append(widget)
-        return all_window_widgets
 
     def keyPressEvent(self, event):
         # For safety reasons, if any motor is moving and any key is pressed, all the motors stop.
