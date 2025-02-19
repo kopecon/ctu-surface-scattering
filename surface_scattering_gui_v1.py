@@ -51,13 +51,11 @@ controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMoto
 
 
 def days_hours_minutes_seconds(dt):
-    # TODO: Refactor this into more readable code
-    return (
-        dt.days,  # days
-        dt.seconds // 3600,  # hours
-        (dt.seconds // 60) % 60,  # minutes
-        dt.seconds - ((dt.seconds // 3600) * 3600) - ((dt.seconds % 3600 // 60) * 60)  # seconds
-    )
+    days = dt.days
+    hours = dt.seconds // 3600
+    minutes = (dt.seconds // 60) % 60
+    seconds = dt.seconds - ((dt.seconds // 3600) * 3600) - ((dt.seconds % 3600 // 60) * 60)
+    return days, hours, minutes, seconds
 
 
 class Window(QMainWindow):
