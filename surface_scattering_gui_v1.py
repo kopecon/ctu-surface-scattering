@@ -139,6 +139,7 @@ class Window(QMainWindow):
         self._move_3_to = self._push_button("Move")
         self._scan = self._push_button("Scan")
         self._stop = self._push_button("STOP")
+        self._stop.setStyleSheet("QPushButton {background-color: rgb(255, 70, 70); color: white;}")
         self._connection_button = self._push_button("Connect")
 
         self._home1.clicked.connect(lambda: self.start_homing(1))
