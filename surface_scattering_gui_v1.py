@@ -238,7 +238,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._home2, 18, 3, 1, 1)
         self._layout.addWidget(self._home3, 18, 4, 1, 1)
         self._layout.addWidget(self._home_all, 19, 3, 1, 1)
-        self._layout.addWidget(_label_url, 20, 5, 1, self._layout.columnCount())
+        self._layout.addWidget(_label_url, 20, 5, 1, 3)
         self._layout.addWidget(QHLine(), 21, 0, 1, self._layout.columnCount())
 
         self._connect_on_start()  # Try connecting to the measurement device
