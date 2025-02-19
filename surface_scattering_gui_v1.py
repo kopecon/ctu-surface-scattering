@@ -161,7 +161,7 @@ class Window(QMainWindow):
         self._move_3_to.clicked.connect(lambda: self.move_to(3, float(self._m3_move_to_value.text())))
         self._stop.clicked.connect(lambda: self.stop_motors())
         self._scan.clicked.connect(lambda: self.start_scanning())
-        self._connection_button.clicked.connect(lambda: self.connect_devices())
+        self._connection_button.clicked.connect(lambda: self.connect_or_disconnect_devices())
 
         # Progress bar
         self._progress_bar = self._progress_bar(0)
@@ -239,7 +239,9 @@ class Window(QMainWindow):
         self._layout.addWidget(_label_url, 20, 5, 1, 3)
         self._layout.addWidget(QHLine(), 21, 0, 1, self._layout.columnCount())
 
-        self._connect_on_start()  # Try connecting to the measurement device
+        # Perform these tasks at the start of the program
+        self._set_disconnected_layout()
+        self.connect_or_disconnect_devices()
 
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
@@ -277,30 +279,38 @@ class Window(QMainWindow):
         return logo
 
     # -----------------------------------------------------------------------------------------------    Widget handling
-    def get_window_widgets(self, *widget_type):
+    def get_window_widgets(self, *widget_types):
         all_window_widgets = []
         for i in range(self._layout.count()):
             widget = self._layout.itemAt(i).widget()
             all_window_widgets.append(widget)
-            # If widget type is specified, remove unwanted widgets
-            if widget_type is not None:
-                for widget in all_window_widgets:
-                    if not isinstance(widget, widget_type):
-                        all_window_widgets.remove(widget)
-
+            # If widget type is specified, remove unwanted widgets and return only the requested widget type
+            for widget_type in widget_types:
+                if not isinstance(widget, widget_type) and widget_type != ():
+                    all_window_widgets.remove(widget)
         return all_window_widgets
 
-    def _enable_every_widget(self, *widget_type):
-        widgets = self.get_window_widgets(widget_type)
+    def _enable_every_widget(self, *widget_types):
+        widgets = self.get_window_widgets(widget_types)
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(True)
 
-    def _disable_every_widget(self, *widget_type):
-        widgets = self.get_window_widgets(widget_type)
+    def _disable_every_widget(self, *widget_types):
+        widgets = self.get_window_widgets(widget_types)
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(False)
+
+    def _set_disconnected_layout(self):
+        self._disable_every_widget(QPushButton)
+        self._stop.setEnabled(True)
+        self._connection_button.setEnabled(True)
+        self._connection_button.setText("Connect")
+
+    def _set_connected_layout(self):
+        self._enable_every_widget(QPushButton)
+        self._connection_button.setText("Disconnect")
 
     def _restrict_value_editing_for_1d_scan(self):
         self._measurement_1d.setEnabled(False)
@@ -320,10 +330,12 @@ class Window(QMainWindow):
 
     def _restrict_value_editing_for_3d_scan(self):
         # First enable everything
-        self._enable_every_widget()
+        self._enable_every_widget(QLineEdit)
         # Disable what is needed
         self._measurement_3d.setEnabled(False)
+        self._measurement_1d.setEnabled(True)
         self._measurement_1d.setChecked(False)
+
         self._label_m1_from.setText("From")
         self._label_m2_from.setText("From")
         self._m3_from_value.setText('0')
@@ -359,7 +371,6 @@ class Window(QMainWindow):
         # Does not work with "SpaceBar" key.
         if isinstance(event, QKeyEvent) and any(worker.isRunning() for worker in self.workers):
             self.stop_motors()
-            self._connection_button.setText('Connect')
 
     #  ---------------------------------------------------------------------------------------    Motor moving functions
     def start_homing(self, motor_id):
@@ -426,33 +437,23 @@ class Window(QMainWindow):
 
     def stop_motors(self):
         for worker in self.workers:
-            worker.termination_request = True
-        controller.stop_motors()
-        self._connection_button.setText('Connect')
+            worker.termination_request = True  # TODO: Check if necessary or if it works at all
+        controller.stop_motors_and_disconnect()
+        self._set_disconnected_layout()
 
-    def connect_devices(self):
+    def connect_or_disconnect_devices(self):
         if self._connection_button.text() == "Connect":
             connection_check = controller.connect()  # Connects to the controller and returns 0 if connected correctly
             if connection_check == 1:
+                self._set_disconnected_layout()
                 # Not connected (Error)
                 return 1
             elif connection_check == 0:
-                self._enable_every_widget()
-                self._measurement_3d.setEnabled(False)
-                self._connection_button.setText("Disconnect")
+                # Connected
+                self._set_connected_layout()
         elif self._connection_button.text() == "Disconnect":
             controller.disconnect()
-            self._connection_button.setText("Connect")
-            # Disable buttons
-            widgets = self.get_window_widgets()
-            for widget in widgets:
-                if hasattr(widget, 'setEnabled'):
-                    if isinstance(widget, QPushButton) and widget.text() != 'Connect':
-                        widget.setEnabled(False)
-
-    def _connect_on_start(self):
-        self._disable_every_widget()
-        self.connect_devices()
+            self._set_disconnected_layout()
 
 
 # Threads for moving the motors:
