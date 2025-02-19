@@ -95,6 +95,7 @@ class MotorController:
             self.active_controller.disconnect()
             # To make sure the serial communication is handled properly
             time.sleep(1)
+            self.active_controller = None  # Remove the controller
             print("Controller disconnected.")
 
     def scanning(self, input_data, thread_signal):
@@ -388,19 +389,20 @@ class _Motor:
         elif self.motor_id == 2:
             self.move_to_position(10)
 
-        self._start_polling(rate=self._polling_rate)
-
-        self._parent_controller.home(self.motor_id)
-        print(f"Homing motor {self.motor_id}...")
-        self._while_moving_do(0)
-        position = self.get_position()
-        if position[1] == 0:
-            print(f"Motor {self.motor_id} successfully homed.")
-            self.reached_left_limit = False
-            self.reached_right_limit = False
-        else:
-            print(f"Motor {self.motor_id} failed to home.")
-        self._stop_polling()
+        time.sleep(0.5)
+        if self._parent_controller is not None:
+            self._start_polling(rate=self._polling_rate)
+            self._parent_controller.home(self.motor_id)
+            print(f"Homing motor {self.motor_id}...")
+            self._while_moving_do(0)
+            position = self.get_position()
+            if position[1] == 0:
+                print(f"Motor {self.motor_id} successfully homed.")
+                self.reached_left_limit = False
+                self.reached_right_limit = False
+            else:
+                print(f"Motor {self.motor_id} failed to home.")
+            self._stop_polling()
 
     def move_to_position(self, position):
         illegal_position = self._check_for_illegal_position(position)
