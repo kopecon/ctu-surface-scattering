@@ -279,21 +279,27 @@ class Window(QMainWindow):
         return logo
 
     # -----------------------------------------------------------------------------------------------    Widget handling
-    def get_window_widgets(self):
+    def get_window_widgets(self, *widget_type):
         all_window_widgets = []
         for i in range(self._layout.count()):
             widget = self._layout.itemAt(i).widget()
             all_window_widgets.append(widget)
+            # If widget type is specified, remove unwanted widgets
+            if widget_type is not None:
+                for widget in all_window_widgets:
+                    if not isinstance(widget, widget_type):
+                        all_window_widgets.remove(widget)
+
         return all_window_widgets
 
-    def _enable_every_widget(self):
-        widgets = self.get_window_widgets()
+    def _enable_every_widget(self, *widget_type):
+        widgets = self.get_window_widgets(widget_type)
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(True)
 
-    def _disable_every_widget(self):
-        widgets = self.get_window_widgets()
+    def _disable_every_widget(self, *widget_type):
+        widgets = self.get_window_widgets(widget_type)
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(False)
