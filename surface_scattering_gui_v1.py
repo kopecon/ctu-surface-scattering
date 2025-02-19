@@ -339,6 +339,10 @@ class Window(QMainWindow):
         self._measurement_1d.setChecked(False)
         self._measurement_3d.setChecked(True)
         self._measurement_3d.setEnabled(False)
+        self._label_m1_from.setText("From")
+        self._label_m2_from.setText("From")
+        self._m3_from_value.setText('0')
+        self._m3_to_value.setText('90')
 
     def _update_progress_bar_label(self, finish_time):
         delta = timedelta(seconds=finish_time)
@@ -412,7 +416,7 @@ class Window(QMainWindow):
                 self._scan_3d]
 
         print("Input Data: ", self._input_data)
-        worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
+        worker = ScanningThread(self._input_data)
         self.workers.append(worker)
         worker.finished.connect(self._reset_layout)
         worker.thread_signal.connect(self._update_progress_bar)
@@ -435,10 +439,8 @@ class Window(QMainWindow):
                 # Not connected (Error)
                 return 1
             elif connection_check == 0:
-                widgets = self.get_window_widgets()
-                for widget in widgets:
-                    if hasattr(widget, 'setEnabled'):
-                        widget.setEnabled(True)
+                self._enable_every_widget()
+                self._measurement_3d.setEnabled(False)
                 self._connection_button.setText("Disconnect")
         elif self._connection_button.text() == "Disconnect":
             controller.disconnect()
@@ -451,12 +453,7 @@ class Window(QMainWindow):
                         widget.setEnabled(False)
 
     def _connect_on_start(self):
-        widgets = self.get_window_widgets()
-        for widget in widgets:
-            if hasattr(widget, 'setEnabled'):
-                if isinstance(widget, QPushButton) and widget.text() != 'Connect':
-                    widget.setEnabled(False)
-
+        self._disable_every_widget()
         self.connect_devices()
 
 
@@ -491,22 +488,15 @@ class MovingThread(QThread):
 class ScanningThread(QThread):
     thread_signal = Signal(list)
 
-    def __init__(self, scan_1d, scan_3d, input_data):
+    def __init__(self, input_data):
         super().__init__()
         self.termination_requested = False
-        self.scan_1d = scan_1d
-        self.scan_3d = scan_3d
         self.input_data = input_data
 
     def run(self) -> None:
         if self.termination_requested:
             return  # Stop running this thread if termination is requested
-        if self.scan_1d:
-            print("1D scanning.")
-            controller.scanning_1d(self.input_data, self.thread_signal)
-        elif self.scan_3d:
-            print("3D scanning.")
-            controller.scanning_3d(self.input_data, self.thread_signal)
+        controller.scanning(self.input_data, self.thread_signal)
 
 
 class QHLine(QFrame):

@@ -18,8 +18,18 @@ import warnings
 # TODO: Test functionality
 
 def _find_range(start, stop, step):
-    dx = int(abs((stop - start)) / step + 1)
-    return np.linspace(start, stop, endpoint=True, num=dx)
+    # TODO: Test all range options and fix illegal combinations (m3 from 270 to 90 etc...)
+    difference = stop - start
+    if difference >= 0:
+        dx = int((stop - start) / step + 1)
+        scan_range = np.linspace(start, stop, endpoint=True, num=dx)
+        return scan_range
+    else:
+        first_half = _find_range(start, 360, step)
+        second_half = _find_range(0, stop, step)
+        scan_range = np.concatenate((first_half, second_half), axis=0)
+        scan_range = np.delete(scan_range, np.where(scan_range == 0))  # 360 and 0 are the same angle... remove one of those.
+        return scan_range
 
 
 def _days_hours_minutes_seconds(dt):
@@ -31,59 +41,51 @@ def _days_hours_minutes_seconds(dt):
 
 
 def _conduct_measurement(number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position):
-    try:
-        with nidaqmx.Task() as task:
-            task.ai_channels.add_ai_voltage_chan(
-                "myDAQ1/ai0:1"
-            )
-            task.timing.cfg_samp_clk_timing(
-                100000,
-                source="",
-                active_edge=Edge.RISING,
-                sample_mode=AcquisitionType.FINITE,
-                samps_per_chan=10,
-            )
+    with nidaqmx.Task() as task:
+        task.ai_channels.add_ai_voltage_chan(
+            "myDAQ1/ai0:1"
+        )
+        task.timing.cfg_samp_clk_timing(
+            100000,
+            source="",
+            active_edge=Edge.RISING,
+            sample_mode=AcquisitionType.FINITE,
+            samps_per_chan=10,
+        )
 
-            n = 0
+        n = 0
 
-            column_names = ["a", "b", "c", "d", "e"]
-            measurement_data = pd.DataFrame(columns=column_names)
+        column_names = ["a", "b", "c", "d", "e"]
+        measurement_data = pd.DataFrame(columns=column_names)
 
-            while n < int(number_of_measurement_points):
-                sensor_data = task.read()
-                data = {
-                    "a": [motor_1_position],
-                    "b": [motor_2_position],
-                    "c": [motor_3_position],
-                    "d": [sensor_data[0]],
-                    "e": [sensor_data[1]]}
-                current_scan = pd.DataFrame(data)
-                measurement_data = pd.concat((measurement_data, current_scan), axis=0)
+        while n < int(number_of_measurement_points):
+            sensor_data = task.read()
+            data = {
+                "a": [motor_1_position],
+                "b": [motor_2_position],
+                "c": [motor_3_position],
+                "d": [sensor_data[0]],
+                "e": [sensor_data[1]]}
+            current_scan = pd.DataFrame(data)
+            measurement_data = pd.concat((measurement_data, current_scan), axis=0)
 
-                # To prevent pandas FutureWarning spam:
-                warnings.simplefilter(action='ignore', category=FutureWarning)
+            # To prevent pandas FutureWarning spam:
+            warnings.simplefilter(action='ignore', category=FutureWarning)
 
-                n += 1
+            n += 1
 
-            measurement_data = measurement_data.mean()
-            print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
-            print(
-                "prumer Signal1:",
-                measurement_data.iloc[3],
-                " a prumer Signal2:",
-                measurement_data.iloc[4],
-            )
-            data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
-            print("Pomer je:", data_ratio)
+        measurement_data = measurement_data.mean()
+        print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
+        print(
+            "prumer Signal1:",
+            measurement_data.iloc[3],
+            " a prumer Signal2:",
+            measurement_data.iloc[4],
+        )
+        data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
+        print("Pomer je:", data_ratio)
 
-    except nidaqmx.errors.DaqNotFoundError:
-        # TODO: Remove try block after debugging
-        print("Unable to use the sensor, inserting fake data.")
-        data = np.array([420, 69, 420, 69, 420])
-        measurement_data = pd.DataFrame(data)
-        data_ratio = 1.420
-
-        return measurement_data, data_ratio
+    return measurement_data, data_ratio
 
 
 def _save_file(name, data, data_ratio, scan_type):
@@ -98,8 +100,6 @@ def _save_file(name, data, data_ratio, scan_type):
         if not os.path.exists(f"{output_path}/data_3D"):
             os.makedirs(f"{output_path}/data_3D/")
         output_path = f"{output_path}/data_3D/"
-    print(scan_type)
-    print(output_path)
     with open(f'{output_path}/{name}', "a") as f:
         line = "{};{};{};{};{};{}".format(data.iloc[0], data.iloc[1], data.iloc[2], data.iloc[3], data.iloc[4], data_ratio)
         print(line, file=f)
@@ -157,13 +157,6 @@ def scan(motors, input_data, thread_signal):
     motor_3_to = float(input_data[7])
     motor_3_step = float(input_data[8])
     motor_3_range = _find_range(motor_3_from, motor_3_to, motor_3_step)
-
-    # Finding range for motor 3
-    if scan_type == '1D':
-        first_half = _find_range(270, 360, motor_3_step)
-        second_half = _find_range(0, 90, motor_3_step)
-        motor_3_range = np.concatenate((first_half, second_half), axis=0)
-        motor_3_range = np.delete(motor_3_range, np.where(motor_3_range == 0))
 
     full_range = (len(motor_1_range) * len(motor_2_range) * len(motor_3_range))
 
