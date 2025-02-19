@@ -18,8 +18,18 @@ import warnings
 # TODO: Test functionality
 
 def _find_range(start, stop, step):
-    dx = int(abs((stop - start)) / step + 1)
-    return np.linspace(start, stop, endpoint=True, num=dx)
+    # TODO: Test all range options and fix illegal combinations (m3 from 270 to 90 etc...)
+    difference = stop - start
+    if difference >= 0:
+        dx = int((stop - start) / step + 1)
+        scan_range = np.linspace(start, stop, endpoint=True, num=dx)
+        return scan_range
+    else:
+        first_half = _find_range(start, 360, step)
+        second_half = _find_range(0, stop, step)
+        scan_range = np.concatenate((first_half, second_half), axis=0)
+        scan_range = np.delete(scan_range, np.where(scan_range == 0))  # 360 and 0 are the same angle... remove one of those.
+        return scan_range
 
 
 def _days_hours_minutes_seconds(dt):
@@ -90,8 +100,6 @@ def _save_file(name, data, data_ratio, scan_type):
         if not os.path.exists(f"{output_path}/data_3D"):
             os.makedirs(f"{output_path}/data_3D/")
         output_path = f"{output_path}/data_3D/"
-    print(scan_type)
-    print(output_path)
     with open(f'{output_path}/{name}', "a") as f:
         line = "{};{};{};{};{};{}".format(data.iloc[0], data.iloc[1], data.iloc[2], data.iloc[3], data.iloc[4], data_ratio)
         print(line, file=f)
@@ -149,13 +157,6 @@ def scan(motors, input_data, thread_signal):
     motor_3_to = float(input_data[7])
     motor_3_step = float(input_data[8])
     motor_3_range = _find_range(motor_3_from, motor_3_to, motor_3_step)
-
-    # Finding range for motor 3
-    if scan_type == '1D':
-        first_half = _find_range(270, 360, motor_3_step)
-        second_half = _find_range(0, 90, motor_3_step)
-        motor_3_range = np.concatenate((first_half, second_half), axis=0)
-        motor_3_range = np.delete(motor_3_range, np.where(motor_3_range == 0))
 
     full_range = (len(motor_1_range) * len(motor_2_range) * len(motor_3_range))
 
