@@ -91,10 +91,9 @@ class MotorController:
         Disconnects the device and closes the communication with it.
         :return: None
         """
-        if hasattr(self.active_controller, 'disconnect'):
+        if self.active_controller is not None:
             self.active_controller.disconnect()
-            # To make sure the serial communication is handled properly
-            time.sleep(1)
+            time.sleep(1)  # To make sure the serial communication is handled properly
             self.active_controller = None  # Remove the controller
             print("Controller disconnected.")
 
@@ -102,17 +101,14 @@ class MotorController:
         scan(self.motors, input_data, thread_signal)
 
     def stop_motors_and_disconnect(self):
-        if self.active_controller is not None:
-            print("Stopping motors!")
-            for motor in self.motors:
-                if isinstance(motor, _Motor):
-                    print(f"    Stopping motor: {motor.motor_id}")
-                    motor.stop()
-                    print(f"    {motor.motor_id} stopped.")
-            self.active_controller.disconnect()  # TODO: Check if necessary
-            time.sleep(1)  # To ensure proper communication through USB
-        else:
-            print("No active controller to disconnect.")
+        print("Stopping motors!")
+        for motor in self.motors:
+            if isinstance(motor, _Motor):
+                print(f"    Stopping motor: {motor.motor_id}")
+                motor.stop()
+                print(f"    {motor.motor_id} stopped.")
+        self.disconnect()  # TODO: Check if necessary
+        time.sleep(1)  # To ensure proper communication through USB
 
 
 class _Motor:
