@@ -332,14 +332,12 @@ class Window(QMainWindow):
     def start_homing(self, motor_id):
         worker = HomingThread(motor_id)
         self.workers.append(worker)
-        print("Activated motor:", motor_id)
 
         worker.start()
 
     def move_to(self, motor_id, position):
         worker = MovingThread(motor_id, position)
         self.workers.append(worker)  # Associating the worker with the object prevents crashing
-        print("Activated motor:", motor_id)
 
         worker.start()
 
@@ -347,11 +345,11 @@ class Window(QMainWindow):
         if self._measurement_1d.isChecked():
             self._scan_1d = True
             self._scan_3d = False
-            print("1D measurement ON")
+            print("Scanning 1D...")
         elif self._measurement_3d.isChecked():
             self._scan_1d = False
             self._scan_3d = True
-            print("3D measurement ON")
+            print("Scanning 3D...")
 
         if self._scan_3d:
             self._input_data = [
@@ -394,6 +392,8 @@ class Window(QMainWindow):
         worker.start()
 
     def stop_motors(self):
+        for worker in self.workers:
+            worker.termination_request = True
         controller.stop_motors()
         self._connection_button.setText('Connect')
 
@@ -431,25 +431,29 @@ class Window(QMainWindow):
 
 # Threads for moving the motors:
 class HomingThread(QThread):
-    on_progress = Signal(int)
 
     def __init__(self, motor_id):
         super().__init__()
+        self.termination_requested = False
         self._active_motor = controller.motors[motor_id]
 
     def run(self) -> None:
+        if self.termination_requested:
+            return  # Stop running this thread if termination is requested
         self._active_motor.home(velocity=10)
 
 
 class MovingThread(QThread):
-    on_progress = Signal(float)
 
     def __init__(self, motor_id, position):
         super().__init__()
+        self.termination_requested = False
         self._position = position
         self._active_motor = controller.motors[motor_id]
 
     def run(self) -> None:
+        if self.termination_requested:
+            return  # Stop running this thread if termination is requested
         self._active_motor.move_to_position(self._position)
 
 
@@ -458,11 +462,14 @@ class ScanningThread(QThread):
 
     def __init__(self, scan_1d, scan_3d, input_data):
         super().__init__()
+        self.termination_requested = False
         self.scan_1d = scan_1d
         self.scan_3d = scan_3d
         self.input_data = input_data
 
     def run(self) -> None:
+        if self.termination_requested:
+            return  # Stop running this thread if termination is requested
         if self.scan_1d:
             print("1D scanning.")
             controller.scanning_1d(self.input_data, self.thread_signal)
