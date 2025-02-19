@@ -101,15 +101,18 @@ class MotorController:
     def scanning(self, input_data, thread_signal):
         scan(self.motors, input_data, thread_signal)
 
-    def stop_motors(self):
-        print("Stopping motors!")
-        for motor in self.motors:
-            if isinstance(motor, _Motor):
-                print(f"    Stopping motor: {motor.motor_id}")
-                motor.stop()
-                print(f"    {motor.motor_id} stopped.")
-        self.active_controller.disconnect()
-        time.sleep(1)
+    def stop_motors_and_disconnect(self):
+        if self.active_controller is not None:
+            print("Stopping motors!")
+            for motor in self.motors:
+                if isinstance(motor, _Motor):
+                    print(f"    Stopping motor: {motor.motor_id}")
+                    motor.stop()
+                    print(f"    {motor.motor_id} stopped.")
+            self.active_controller.disconnect()  # TODO: Check if necessary
+            time.sleep(1)  # To ensure proper communication through USB
+        else:
+            print("No active controller to disconnect.")
 
 
 class _Motor:
