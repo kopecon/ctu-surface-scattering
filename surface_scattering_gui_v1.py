@@ -147,7 +147,8 @@ class Window(QMainWindow):
         self._move_3_to = self._push_button("Move")
         self._scan = self._push_button("Scan")
         self._stop = self._push_button("STOP")
-        self._stop.setStyleSheet("QPushButton {background-color: rgb(255, 70, 70); color: white;}")
+        self._stop.setFixedSize(80, 80)
+        self._stop.setStyleSheet("QPushButton {background-color: rgb(255, 26, 26); color: white;}")
         self._connection_button = self._push_button("Connect")
 
         self._home1.clicked.connect(lambda: self.start_homing(1))
@@ -180,8 +181,7 @@ class Window(QMainWindow):
 
         # Place and display created widgets
         self._layout.addWidget(self._connection_button, 0, 2, 1, 1)
-        self._layout.addWidget(self._stop, 0, 4, 1, 1)
-        self._layout.addWidget(logo, 0, 7, 1, 2)
+        self._layout.addWidget(_label_url, 0, 6, 1, 3)
         self._layout.addWidget(_label_controller_setup_title, 0, 0, 1, 2)
         self._layout.addWidget(QHLine(), 1, 0, 1, self._layout.columnCount())
         self._layout.addWidget(_label_motor_setup_title, 2, 0, 1, 1)
@@ -232,11 +232,11 @@ class Window(QMainWindow):
         self._layout.addWidget(self._progress_bar, 15, 2, 1, 3)
         self._layout.addWidget(QHLine(), 16, 0, 1, self._layout.columnCount())
         self._layout.addWidget(_label_home_title, 17, 0, 1, 1)
+        self._layout.addWidget(self._stop, 17, 6, 4, 3, alignment=Qt.AlignmentFlag.AlignCenter)
         self._layout.addWidget(self._home1, 18, 2, 1, 1)
         self._layout.addWidget(self._home2, 18, 3, 1, 1)
         self._layout.addWidget(self._home3, 18, 4, 1, 1)
         self._layout.addWidget(self._home_all, 19, 3, 1, 1)
-        self._layout.addWidget(_label_url, 20, 5, 1, 3)
         self._layout.addWidget(QHLine(), 21, 0, 1, self._layout.columnCount())
 
         # Perform these tasks at the start of the program
