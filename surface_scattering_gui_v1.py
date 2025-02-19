@@ -333,6 +333,10 @@ class Window(QMainWindow):
         self._measurement_1d.setChecked(False)
         self._measurement_3d.setChecked(True)
         self._measurement_3d.setEnabled(False)
+        self._label_m1_from.setText("From")
+        self._label_m2_from.setText("From")
+        self._m3_from_value.setText('0')
+        self._m3_to_value.setText('90')
 
     def _update_progress_bar_label(self, finish_time):
         delta = timedelta(seconds=finish_time)
