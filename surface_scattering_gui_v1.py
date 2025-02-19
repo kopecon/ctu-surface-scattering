@@ -163,8 +163,8 @@ class Window(QMainWindow):
         self._measurement_1d.setChecked(False)
         self._measurement_3d.setChecked(True)
         self._measurement_3d.setEnabled(False)
-        self._measurement_1d.clicked.connect(self._restrict_value_editing_for_1d_measurement)
-        self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_measurement)
+        self._measurement_1d.clicked.connect(self._restrict_value_editing_for_1d_scan)
+        self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_scan)
 
         # Logo
         logo = self._create_logo()
@@ -267,7 +267,13 @@ class Window(QMainWindow):
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(True)
 
-    def _restrict_value_editing_for_1d_measurement(self):
+    def _disable_every_widget(self):
+        widgets = self.get_window_widgets()
+        for widget in widgets:
+            if hasattr(widget, 'setEnabled'):
+                widget.setEnabled(False)
+
+    def _restrict_value_editing_for_1d_scan(self):
         self._measurement_1d.setEnabled(False)
         self._measurement_3d.setEnabled(True)
         self._measurement_3d.setChecked(False)
@@ -283,7 +289,7 @@ class Window(QMainWindow):
         self._m3_from_value.setText('270')
         self._m3_to_value.setText('90')
 
-    def _restrict_value_editing_for_3d_measurement(self):
+    def _restrict_value_editing_for_3d_scan(self):
         # First enable everything
         self._enable_every_widget()
         # Disable what is needed
@@ -294,14 +300,14 @@ class Window(QMainWindow):
         self._m3_from_value.setText('0')
         self._m3_to_value.setText('90')
 
-    def _update_layout_after_finished_scanning(self):
+    def _reset_layout(self):
         self._progress_bar.setValue(0)
-        # Enable every widget
+
         self._enable_every_widget()
 
         self._measurement_1d.setChecked(False)
-        self._measurement_3d.setEnabled(False)
         self._measurement_3d.setChecked(True)
+        self._measurement_3d.setEnabled(False)
 
     def _update_progress_bar_label(self, finish_time):
         delta = timedelta(seconds=finish_time)
@@ -379,14 +385,11 @@ class Window(QMainWindow):
         print("Input Data: ", self._input_data)
         worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
         self.workers.append(worker)
-        worker.finished.connect(self._update_layout_after_finished_scanning)  # propojeni signalu
+        worker.finished.connect(self._reset_layout)
         worker.thread_signal.connect(self._update_progress_bar)
 
-        self._home1.setEnabled(False)
-        self._home2.setEnabled(False)
-        self._home3.setEnabled(False)
-        self._home_all.setEnabled(False)
-        self._scan.setEnabled(False)
+        self._disable_every_widget()
+        self._stop.setEnabled(True)
 
         worker.start()
 
