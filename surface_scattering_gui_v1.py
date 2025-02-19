@@ -83,12 +83,12 @@ class Window(QMainWindow):
         # Labels
         _label_motor_setup_title = self._label("Motors Setup:")
 
-        _label_m1_from = self._label("From")
+        self._label_m1_from = self._label("From")  # Text is being changed => self.
         _label_m1_to = self._label("To")
         _label_m1_step = self._label("Step")
         _label_m1 = self._label("Motor 1")
 
-        _label_m2_from = self._label("From")
+        self._label_m2_from = self._label("From")
         _label_m2_to = self._label("To")
         _label_m2_step = self._label("Step")
         _label_m2 = self._label("Motor 2")
@@ -171,11 +171,11 @@ class Window(QMainWindow):
 
         # Place and display created widgets
         self._layout.addWidget(_label_motor_setup_title, 0, 0, 1, 1)
-        self._layout.addWidget(_label_m1_from, 1, 1, 1, 1)
+        self._layout.addWidget(self._label_m1_from, 1, 1, 1, 1)
         self._layout.addWidget(_label_m1_to, 1, 2, 1, 1)
         self._layout.addWidget(_label_m1_step, 1, 3, 1, 1)
         self._layout.addWidget(_label_m1, 2, 0, 1, 1)
-        self._layout.addWidget(_label_m2_from, 3, 1, 1, 1)
+        self._layout.addWidget(self._label_m2_from, 3, 1, 1, 1)
         self._layout.addWidget(_label_m2_to, 3, 2, 1, 1)
         self._layout.addWidget(_label_m2_step, 3, 3, 1, 1)
         self._layout.addWidget(_label_m2, 4, 0, 1, 1)
@@ -272,21 +272,16 @@ class Window(QMainWindow):
         self._measurement_3d.setEnabled(True)
         self._measurement_3d.setChecked(False)
 
-        if self._measurement_1d.isChecked():
-            self._m1_to_value.setEnabled(False)
-            self._m1_step_value.setEnabled(False)
-            self._m2_to_value.setEnabled(False)
-            self._m2_step_value.setEnabled(False)
-            self._m3_from_value.setEnabled(False)
-            self._m3_to_value.setEnabled(False)
-
-        else:
-            self._m1_to_value.setEnabled(True)
-            self._m1_step_value.setEnabled(True)
-            self._m2_to_value.setEnabled(True)
-            self._m2_step_value.setEnabled(True)
-            self._m3_from_value.setEnabled(True)
-            self._m3_to_value.setEnabled(True)
+        self._m1_to_value.setEnabled(False)
+        self._m1_step_value.setEnabled(False)
+        self._m2_to_value.setEnabled(False)
+        self._m2_step_value.setEnabled(False)
+        self._m3_from_value.setEnabled(True)
+        self._m3_to_value.setEnabled(True)
+        self._label_m1_from.setText("Where")
+        self._label_m2_from.setText("Where")
+        self._m3_from_value.setText('270')
+        self._m3_to_value.setText('90')
 
     def _restrict_value_editing_for_3d_measurement(self):
         # First enable everything
@@ -294,6 +289,10 @@ class Window(QMainWindow):
         # Disable what is needed
         self._measurement_3d.setEnabled(False)
         self._measurement_1d.setChecked(False)
+        self._label_m1_from.setText("From")
+        self._label_m2_from.setText("From")
+        self._m3_from_value.setText('0')
+        self._m3_to_value.setText('90')
 
     def _update_layout_after_finished_scanning(self):
         self._progress_bar.setValue(0)
@@ -344,22 +343,38 @@ class Window(QMainWindow):
             self._scan_3d = False
             print("1D measurement ON")
         elif self._measurement_3d.isChecked():
-            self._scan_3d = False
+            self._scan_1d = False
             self._scan_3d = True
             print("3D measurement ON")
 
-        self._input_data = [
-            self._m1_from_value.text(),
-            self._m1_to_value.text(),
-            self._m1_step_value.text(),
-            self._m2_from_value.text(),
-            self._m2_to_value.text(),
-            self._m2_step_value.text(),
-            self._m3_from_value.text(),
-            self._m3_to_value.text(),
-            self._m3_step_value.text(),
-            self._number_of_measurement_points_value.text(),
-            self._scan_1d]
+        if self._scan_3d:
+            self._input_data = [
+                self._m1_from_value.text(),
+                self._m1_to_value.text(),
+                self._m1_step_value.text(),
+                self._m2_from_value.text(),
+                self._m2_to_value.text(),
+                self._m2_step_value.text(),
+                self._m3_from_value.text(),
+                self._m3_to_value.text(),
+                self._m3_step_value.text(),
+                self._number_of_measurement_points_value.text(),
+                self._scan_1d]
+
+        elif self._scan_1d:
+            self._input_data = [
+                self._m1_from_value.text(),
+                self._m1_from_value.text(),
+                self._m1_step_value.text(),
+                self._m2_from_value.text(),
+                self._m2_from_value.text(),
+                self._m2_step_value.text(),
+                self._m3_from_value.text(),
+                self._m3_to_value.text(),
+                self._m3_step_value.text(),
+                self._number_of_measurement_points_value.text(),
+                self._scan_1d,
+                self._scan_3d]
 
         print("Input Data: ", self._input_data)
         worker = ScanningThread(self._scan_1d, self._scan_3d, self._input_data)
@@ -375,9 +390,9 @@ class Window(QMainWindow):
 
         worker.start()
 
-    @staticmethod
-    def stop_motors():
+    def stop_motors(self):
         controller.stop_motors()
+        self._connection_button.setText('Connect')
 
     def connect_devices(self):
         if self._connection_button.text() == "Connect":
