@@ -97,10 +97,7 @@ class MotorController:
             time.sleep(1)
             print("Controller disconnected.")
 
-    def scanning_1d(self, input_data, thread_signal):
-        scan_1d(self.motors, input_data, thread_signal)
-
-    def scanning_3d(self, input_data, thread_signal):
+    def scanning(self, input_data, thread_signal):
         scan(self.motors, input_data, thread_signal)
 
     def stop_motors(self):
