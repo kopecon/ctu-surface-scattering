@@ -177,7 +177,7 @@ class Window(QMainWindow):
         self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_scan)
 
         # Logo
-        logo = self._create_logo()
+        logo = self._create_logo()  # Currently unused
 
         # Place and display created widgets
         self._layout.addWidget(self._connection_button, 0, 2, 1, 1)
