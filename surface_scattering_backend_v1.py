@@ -11,7 +11,11 @@ from _surface_scattering_scan import scan
 
 
 # Editable Parameters:
-hardware_limit_margin = 5  # How far [deg] beyond limit can device legally move without stopping.
+motor_1_limit = (270, 90)
+motor_2_limit = (0, 270)
+motor_3_limit = (270, 90)
+limit_margin = 5  # How far [deg] beyond limit can device legally move without stopping.
+global_polling_rate = 200
 
 
 class MotorController:
@@ -41,9 +45,9 @@ class MotorController:
         # on the index=1
 
         # There are 3 motors in our setup, so we add a variable for each motor. Motors get assigned by connect().
-        self.motor_1 = None
-        self.motor_2 = None
-        self.motor_3 = None
+        self.motor_1 = _Motor(self, 1)
+        self.motor_2 = _Motor(self, 2)
+        self.motor_3 = _Motor(self, 3)
 
     # This function is crashing the code if no device is plugged in via USB
     def connect(self):
@@ -69,7 +73,7 @@ class MotorController:
             for i, chanel in enumerate(self.channels):
                 print(f"    Motor {i + 1} identified.")
                 # i starts indexing from 0 but motor ID starts from 1 => i+1
-                self.motors.append(_Motor(self, motor_id=i + 1))
+                self.motors.append(_Motor(self, motor_id=i + 1, polling_rate=global_polling_rate))
 
             # Assign variable for each motor separately
             self.motor_1 = self.motors[1]  # Motor holding the laser
@@ -77,9 +81,9 @@ class MotorController:
             self.motor_3 = self.motors[3]  # Motor holding the sensor
             print("Connection done.")
             # Set the hardware limits of each motor independently
-            self.motor_1.hardware_limits = (270-hardware_limit_margin, 90+hardware_limit_margin)
-            self.motor_2.hardware_limits = (0-hardware_limit_margin, 270+hardware_limit_margin)
-            self.motor_3.hardware_limits = (270-hardware_limit_margin, 90+hardware_limit_margin)
+            self.motor_1.hardware_limits = (motor_1_limit[0] - limit_margin, motor_1_limit[1] + limit_margin)
+            self.motor_2.hardware_limits = (motor_2_limit[0] - limit_margin, motor_2_limit[1] + limit_margin)
+            self.motor_3.hardware_limits = (motor_3_limit[0] - limit_margin, motor_3_limit[2] + limit_margin)
             print("Motor settings loaded.")
             return 0  # Successful
         except OSError:
@@ -126,6 +130,7 @@ class _Motor:
         self.hardware_limits = hardware_limits  # Max angle of rotation in degrees
         self._parent_controller = parent.active_controller
         self.settings_loaded = False
+
         self._load_settings()
 
         # Movement status
@@ -181,18 +186,27 @@ class _Motor:
         It is called when creating the motor instance in __init__() when used MotorController.connect().
         :return:
         """
-        self._parent_controller.load_settings(self.motor_id)
-        # The SBC_Open(serialNo) function in Kinesis is non-blocking, and therefore we
-        # Should add a delay for Kinesis to establish communication with the serial port
-        time.sleep(1)
-        self.settings_loaded = True
-        print(f"    Motor {self.motor_id} setting loaded.")
+        if self._parent_controller is not None:
+            self._parent_controller.load_settings(self.motor_id)
+            # The SBC_Open(serialNo) function in Kinesis is non-blocking, and therefore we
+            # Should add a delay for Kinesis to establish communication with the serial port
+            time.sleep(1)
+            self.settings_loaded = True
+            print(f"    Motor {self.motor_id} setting loaded.")
+        else:
+            print("Controller not connected.")
 
     def _start_polling(self, rate=200):
-        self._parent_controller.start_polling(self.motor_id, rate)
+        if self._parent_controller is not None:
+            self._parent_controller.start_polling(self.motor_id, rate)
+        else:
+            print("Controller not connected.")
 
     def _stop_polling(self):
-        self._parent_controller.stop_polling(self.motor_id)
+        if self._parent_controller is not None:
+            self._parent_controller.stop_polling(self.motor_id)
+        else:
+            print("Controller not connected.")
 
     def get_position(self):
         if self.settings_loaded:
@@ -204,13 +218,17 @@ class _Motor:
             return print("Settings need to be loaded first.")
 
     def get_velocity(self):
-        # Default value for movement: vel = 50.0 deg/s, acc = 25.0003 deg/s/s  TODO: double check the units
-        velocity_d_u, acceleration_d_u = self._parent_controller.get_vel_params(self.motor_id)
-        velocity_real = self._parent_controller.get_real_value_from_device_unit(
-            self.motor_id, velocity_d_u, "VELOCITY")
-        acceleration_real = self._parent_controller.get_real_value_from_device_unit(
-            self.motor_id, acceleration_d_u, "ACCELERATION")
-        return velocity_real, acceleration_real
+        if self._parent_controller is not None:
+            # Default value for movement: vel = 50.0 deg/s, acc = 25.0003 deg/s/s  TODO: double check the units
+            velocity_d_u, acceleration_d_u = self._parent_controller.get_vel_params(self.motor_id)
+            velocity_real = self._parent_controller.get_real_value_from_device_unit(
+                self.motor_id, velocity_d_u, "VELOCITY")
+            acceleration_real = self._parent_controller.get_real_value_from_device_unit(
+                self.motor_id, acceleration_d_u, "ACCELERATION")
+            return velocity_real, acceleration_real
+
+        else:
+            print("Controller not connected.")
 
     def get_homing_velocity(self):
         if self.settings_loaded:
@@ -298,7 +316,6 @@ class _Motor:
                                                                                 'DISTANCE')
 
         self._parent_controller.set_limit_switch_params(self.motor_id, 2, 2, max_angle_d_u, min_angle_d_u, 2)
-        print(self.get_rotation_limits())
 
     def set_limits_approach_policy(self, mode: int):
         # TODO: DONT UNDERSTAND, DOESNT WORK
@@ -363,12 +380,18 @@ class _Motor:
     def set_velocity(self, velocity=20, acceleration=30):
         # Velocity over 10 is already very fast to keep up with polling rate 200ms
         # TODO: Test proper velocities
-        velocity_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, velocity,
-                                                                                        "VELOCITY")
-        acceleration_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, acceleration,
-                                                                                            "ACCELERATION")
+        if self._parent_controller is not None:
+            velocity_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                                            velocity,
+                                                                                            "VELOCITY")
+            acceleration_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                                                acceleration,
+                                                                                                "ACCELERATION")
 
-        self._parent_controller.set_vel_params(self.motor_id, velocity_device_units, acceleration_device_units)
+            self._parent_controller.set_vel_params(self.motor_id, velocity_device_units, acceleration_device_units)
+
+        else:
+            print("Controller not connected.")
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
 
@@ -388,7 +411,7 @@ class _Motor:
         elif self.motor_id == 2:
             self.move_to_position(10)
 
-        time.sleep(0.5)
+        time.sleep(0.5)  # To make sure that controller has not been disconnected in the meantime.
         if self._parent_controller is not None:
             self._start_polling(rate=self._polling_rate)
             self._parent_controller.home(self.motor_id)
@@ -402,40 +425,46 @@ class _Motor:
             else:
                 print(f"Motor {self.motor_id} failed to home.")
             self._stop_polling()
+        else:
+            print("Controller not connected.")
 
     def move_to_position(self, position):
-        illegal_position = self._check_for_illegal_position(position)
-        print(f"Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}")
-        if not illegal_position:
-            self._start_polling()
-            position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                              position,
-                                                                                              "DISTANCE")
-            start_time = time.time()
-            self._parent_controller.move_to_position(self.motor_id, position_in_device_unit)
-            self._while_moving_do(1)
-            self._stop_polling()
-            end_time = time.time()
-            duration = abs(end_time - start_time)
-            print("Movement duration:", duration)
+        if self._parent_controller is not None:
+            illegal_position = self._check_for_illegal_position(position)
+            print(f"Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}")
+            if not illegal_position:
+                self._start_polling()
+                position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                                                  position,
+                                                                                                  "DISTANCE")
+                start_time = time.time()
+                self._parent_controller.move_to_position(self.motor_id, position_in_device_unit)
+                self._while_moving_do(1)
+                self._stop_polling()
+                end_time = time.time()
+                duration = abs(end_time - start_time)
+                print("Movement duration:", duration)
 
-            if self.motor_id != 2:
-                if self.reached_left_limit and not self.is_moving:
-                    print("Left limit handling")
-                    self.set_velocity(velocity=10, acceleration=20)
-                    self.set_rotation_mode(mode=2, direction=1)  # Forward direction
-                    time.sleep(1)
-                    self.reached_left_limit = False
-                    self.move_to_position(position)  # Rotate clockwise
-                elif self.reached_right_limit:
-                    print("Right limit handling")
-                    self.set_velocity(velocity=10, acceleration=20)
-                    self.set_rotation_mode(mode=2, direction=2)  # Forward direction
-                    time.sleep(1)
-                    self.reached_right_limit = False
-                    self.move_to_position(position)  # Rotate anticlockwise
+                if self.motor_id != 2:
+                    if self.reached_left_limit and not self.is_moving:
+                        print("Left limit handling")
+                        self.set_velocity(velocity=10, acceleration=20)
+                        self.set_rotation_mode(mode=2, direction=1)  # Forward direction
+                        time.sleep(1)
+                        self.reached_left_limit = False
+                        self.move_to_position(position)  # Rotate clockwise
+                    elif self.reached_right_limit:
+                        print("Right limit handling")
+                        self.set_velocity(velocity=10, acceleration=20)
+                        self.set_rotation_mode(mode=2, direction=2)  # Forward direction
+                        time.sleep(1)
+                        self.reached_right_limit = False
+                        self.move_to_position(position)  # Rotate anticlockwise
+            else:
+                print("Movement would result in illegal position")
+
         else:
-            print("Movement would result in illegal position")
+            print("Controller not connected.")
 
     def stop(self):
         # stop_immediate(self, channel)  might be another option but following version works so far.
