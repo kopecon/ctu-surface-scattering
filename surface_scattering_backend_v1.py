@@ -155,7 +155,7 @@ class _Motor:
             print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
             message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
             movement_direction = self._check_for_movement_direction(position[1])
-            illegal_position = self._check_for_illegal_position(position[1])
+            illegal_position = self.check_for_illegal_position(position[1])
             if illegal_position and value != 0:
                 if abs(position[1] - self.hardware_limits[1]) < abs(position[1] - self.hardware_limits[0]) \
                         and movement_direction == 'FORWARD':
@@ -282,7 +282,7 @@ class _Motor:
         else:
             return None
 
-    def _check_for_illegal_position(self, target_position):
+    def check_for_illegal_position(self, target_position):
         left_limit = self.hardware_limits[0]
         right_limit = self.hardware_limits[1]
         if self.motor_id != 2:
@@ -430,7 +430,7 @@ class _Motor:
 
     def move_to_position(self, position):
         if self._parent_controller is not None:
-            illegal_position = self._check_for_illegal_position(position)
+            illegal_position = self.check_for_illegal_position(position)
             print(f"Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}")
             if not illegal_position:
                 self._start_polling()
