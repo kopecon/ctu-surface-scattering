@@ -11,10 +11,16 @@ from _surface_scattering_scan import scan
 
 
 # Editable Parameters:
-motor_1_limit = (270, 90)
-motor_2_limit = (0, 270)
-motor_3_limit = (270, 90)
+motor_1_limits = (270, 90)
+motor_2_limits = (0, 270)
+motor_3_limits = (270, 90)
+
 limit_margin = 5  # How far [deg] beyond limit can device legally move without stopping.
+
+motor_1_limits = (motor_1_limits[0] - limit_margin, motor_1_limits[1] + limit_margin)
+motor_2_limits = (motor_2_limits[0] - limit_margin, motor_2_limits[1] + limit_margin)
+motor_3_limits = (motor_3_limits[0] - limit_margin, motor_3_limits[1] + limit_margin)
+
 global_polling_rate = 200
 
 
@@ -40,14 +46,13 @@ class MotorController:
             connection=ConnectionRecord(address=self._address, backend=self._backend))
         self.active_controller = None  # The instance of BenchtopStepperMotor class. Needs to be initiated by connect().
         self.channels = []  # List of available channels
-        self.motors = [None, None, None, None]
+        # There are 3 motors in our setup, so we add a variable for each motor. Motors get assigned by connect().
+        self.motor_1 = _Motor(self, 1, motor_1_limits)
+        self.motor_2 = _Motor(self, 2, motor_2_limits)
+        self.motor_3 = _Motor(self, 3, motor_3_limits)
+        self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
         # List of available motors - motors are indexed from 1, so let 0 index be None, so the first motor is
         # on the index=1
-
-        # There are 3 motors in our setup, so we add a variable for each motor. Motors get assigned by connect().
-        self.motor_1 = _Motor(self, 1)
-        self.motor_2 = _Motor(self, 2)
-        self.motor_3 = _Motor(self, 3)
 
     # This function is crashing the code if no device is plugged in via USB
     def connect(self):
@@ -65,30 +70,16 @@ class MotorController:
             print("Record set up successfully.")
             time.sleep(1)  # Leave some time for connection to establish correctly
 
-            self.channels = list(
-                range(0, self.active_controller.max_channel_count()))  # Scan how many channels are on the device
-            print("Identifying motors...")
-            self.motors = [None]  # Erase previously loaded motors
-            # Create list of available motors
-            for i, chanel in enumerate(self.channels):
-                print(f"    Motor {i + 1} identified.")
-                # i starts indexing from 0 but motor ID starts from 1 => i+1
-                self.motors.append(_Motor(self, motor_id=i + 1, polling_rate=global_polling_rate))
+            self.motor_1._parent_controller = self.active_controller
+            self.motor_2._parent_controller = self.active_controller
+            self.motor_3._parent_controller = self.active_controller
 
-            # Assign variable for each motor separately
-            self.motor_1 = self.motors[1]  # Motor holding the laser
-            self.motor_2 = self.motors[2]  # Motor rotating around the sample
-            self.motor_3 = self.motors[3]  # Motor holding the sensor
             print("Connection done.")
-            # Set the hardware limits of each motor independently
-            self.motor_1.hardware_limits = (motor_1_limit[0] - limit_margin, motor_1_limit[1] + limit_margin)
-            self.motor_2.hardware_limits = (motor_2_limit[0] - limit_margin, motor_2_limit[1] + limit_margin)
-            self.motor_3.hardware_limits = (motor_3_limit[0] - limit_margin, motor_3_limit[2] + limit_margin)
-            print("Motor settings loaded.")
+
             return 0  # Successful
         except OSError:
             print("No devices found.")
-            return 1  # Error
+            return 0  # Error  # TODO: Set to 1 after debugging!!!
 
     def disconnect(self):
         """
@@ -122,7 +113,7 @@ class _Motor:
     This class allows us to access the motor functions such as moving and homing of each motor independently.
     """
 
-    def __init__(self, parent: MotorController, motor_id: int, polling_rate=200, hardware_limits=(270, 90)):
+    def __init__(self, parent: MotorController, motor_id: int, hardware_limits: tuple, polling_rate=200):
         # Motor parameters
         self.motor_id = motor_id  # Number corresponding to the channel number to which is this motor assigned
         self._parent = parent  # MotorController class instance
@@ -295,6 +286,7 @@ class _Motor:
             if left_limit <= target_position <= right_limit:
                 return False
             else:
+                print(left_limit, target_position, right_limit)
                 return True
 
     def _check_for_movement_direction(self, previous_position):
