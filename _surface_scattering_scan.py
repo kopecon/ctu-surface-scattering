@@ -125,7 +125,6 @@ def _update_progressbar(progress_count, start_time, full_range, thread_signal):
 
 
 def scan(motors, input_data, thread_signal):
-    print("3D measurement in progress...")
 
     progress_count = 0
 
@@ -161,6 +160,26 @@ def scan(motors, input_data, thread_signal):
     full_range = (len(motor_1_range) * len(motor_2_range) * len(motor_3_range))
 
     number_of_measurement_points = input_data[9]
+
+    # Check for illegal positions:
+    if motor_1.check_for_illegal_position(motor_1_from):
+        print('Motor 1: "from" is outside of the legal space.')
+        return
+    elif motor_1.check_for_illegal_position(motor_1_to):
+        print('Motor 1: "to" is outside of the legal space.')
+        return
+    elif motor_2.check_for_illegal_position(motor_2_from):
+        print('Motor 2: "from" is outside of the legal space.')
+        return
+    elif motor_2.check_for_illegal_position(motor_2_to):
+        print('Motor 2: "to" is outside of the legal space.')
+        return
+    elif motor_3.check_for_illegal_position(motor_3_from):
+        print('Motor 3: "from" is outside of the legal space.')
+        return
+    elif motor_3.check_for_illegal_position(motor_3_to):
+        print('Motor 3: "to" is outside of the legal space.')
+        return
 
     for i in motor_1_range:
         if hasattr(motor_1, 'move_to_position'):
