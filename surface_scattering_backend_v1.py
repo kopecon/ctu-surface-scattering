@@ -70,9 +70,9 @@ class MotorController:
             print("Record set up successfully.")
             time.sleep(1)  # Leave some time for connection to establish correctly
 
-            self.motor_1._parent_controller = self.active_controller
-            self.motor_2._parent_controller = self.active_controller
-            self.motor_3._parent_controller = self.active_controller
+            self.motor_1.parent_controller = self.active_controller
+            self.motor_2.parent_controller = self.active_controller
+            self.motor_3.parent_controller = self.active_controller
 
             print("Connection done.")
 
@@ -119,7 +119,7 @@ class _Motor:
         self._parent = parent  # MotorController class instance
         self._polling_rate = polling_rate
         self.hardware_limits = hardware_limits  # Max angle of rotation in degrees
-        self._parent_controller = parent.active_controller
+        self.parent_controller = parent.active_controller
         self.settings_loaded = False
 
         self._load_settings()
@@ -137,14 +137,14 @@ class _Motor:
     # -----------------------------------------------------------------------------------   Motor Information Collecting
     def _while_moving_do(self, value: int):
         # Works in combination with polling. "start polling, wait, stop polling" to perform tasks while moving.
-        self._parent_controller.clear_message_queue(self.motor_id)
-        message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
+        self.parent_controller.clear_message_queue(self.motor_id)
+        message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
         # Loop until the motor reaches the desired position and changes message type then stop while loop.
         while message_type != 2 or message_id != value:
             self.is_moving = True
             position = self.get_position()
             print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
-            message_type, message_id, _ = self._parent_controller.wait_for_message(self.motor_id)
+            message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
             movement_direction = self._check_for_movement_direction(position[1])
             illegal_position = self.check_for_illegal_position(position[1])
             if illegal_position and value != 0:
@@ -177,8 +177,8 @@ class _Motor:
         It is called when creating the motor instance in __init__() when used MotorController.connect().
         :return:
         """
-        if self._parent_controller is not None:
-            self._parent_controller.load_settings(self.motor_id)
+        if self.parent_controller is not None:
+            self.parent_controller.load_settings(self.motor_id)
             # The SBC_Open(serialNo) function in Kinesis is non-blocking, and therefore we
             # Should add a delay for Kinesis to establish communication with the serial port
             time.sleep(1)
@@ -188,33 +188,33 @@ class _Motor:
             print("Controller not connected.")
 
     def _start_polling(self, rate=200):
-        if self._parent_controller is not None:
-            self._parent_controller.start_polling(self.motor_id, rate)
+        if self.parent_controller is not None:
+            self.parent_controller.start_polling(self.motor_id, rate)
         else:
             print("Controller not connected.")
 
     def _stop_polling(self):
-        if self._parent_controller is not None:
-            self._parent_controller.stop_polling(self.motor_id)
+        if self.parent_controller is not None:
+            self.parent_controller.stop_polling(self.motor_id)
         else:
             print("Controller not connected.")
 
     def get_position(self):
         if self.settings_loaded:
-            position_device_unit = self._parent_controller.get_position(self.motor_id)
-            position_real_unit = self._parent_controller.get_real_value_from_device_unit(
+            position_device_unit = self.parent_controller.get_position(self.motor_id)
+            position_real_unit = self.parent_controller.get_real_value_from_device_unit(
                 self.motor_id, position_device_unit, "DISTANCE")
             return position_device_unit, position_real_unit
         else:
             return print("Settings need to be loaded first.")
 
     def get_velocity(self):
-        if self._parent_controller is not None:
+        if self.parent_controller is not None:
             # Default value for movement: vel = 50.0 deg/s, acc = 25.0003 deg/s/s  TODO: double check the units
-            velocity_d_u, acceleration_d_u = self._parent_controller.get_vel_params(self.motor_id)
-            velocity_real = self._parent_controller.get_real_value_from_device_unit(
+            velocity_d_u, acceleration_d_u = self.parent_controller.get_vel_params(self.motor_id)
+            velocity_real = self.parent_controller.get_real_value_from_device_unit(
                 self.motor_id, velocity_d_u, "VELOCITY")
-            acceleration_real = self._parent_controller.get_real_value_from_device_unit(
+            acceleration_real = self.parent_controller.get_real_value_from_device_unit(
                 self.motor_id, acceleration_d_u, "ACCELERATION")
             return velocity_real, acceleration_real
 
@@ -223,9 +223,9 @@ class _Motor:
 
     def get_homing_velocity(self):
         if self.settings_loaded:
-            velocity_device_units = self._parent_controller.get_homing_velocity(self.motor_id)
-            velocity_real_units = self._parent_controller.get_real_value_from_device_unit(self.motor_id,
-                                                                                          velocity_device_units,
+            velocity_device_units = self.parent_controller.get_homing_velocity(self.motor_id)
+            velocity_real_units = self.parent_controller.get_real_value_from_device_unit(self.motor_id,
+                                                                                         velocity_device_units,
                                                                                           "VELOCITY")
             return velocity_real_units, velocity_device_units
         else:
@@ -236,18 +236,18 @@ class _Motor:
         # AllowPartialMoves = 1
         # AllowAllMoves = 2
         # By default 0
-        limit_mode = self._parent_controller.get_soft_limit_mode(self.motor_id)
+        limit_mode = self.parent_controller.get_soft_limit_mode(self.motor_id)
         return limit_mode
 
     def get_rotation_limits(self):
         # Call only after "load_settings()"
-        min_angle_d_u = self._parent_controller.get_stage_axis_min_pos(self.motor_id)
-        max_angle_d_u = self._parent_controller.get_stage_axis_max_pos(self.motor_id)
-        min_angle_r_u = self._parent_controller.get_real_value_from_device_unit(self.motor_id,
-                                                                                min_angle_d_u,
+        min_angle_d_u = self.parent_controller.get_stage_axis_min_pos(self.motor_id)
+        max_angle_d_u = self.parent_controller.get_stage_axis_max_pos(self.motor_id)
+        min_angle_r_u = self.parent_controller.get_real_value_from_device_unit(self.motor_id,
+                                                                               min_angle_d_u,
                                                                                 'DISTANCE')
-        max_angle_r_u = self._parent_controller.get_real_value_from_device_unit(self.motor_id,
-                                                                                max_angle_d_u,
+        max_angle_r_u = self.parent_controller.get_real_value_from_device_unit(self.motor_id,
+                                                                               max_angle_d_u,
                                                                                 'DISTANCE')
         return min_angle_r_u, max_angle_r_u
 
@@ -300,14 +300,14 @@ class _Motor:
     #  All parameters can be set only after "load_settings()" has been called or gets overwritten
     def set_limit_parameters(self, min_angle=0, max_angle=360):
         # TODO: DONT UNDERSTAND, DOESNT WORK
-        min_angle_d_u = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                min_angle,
+        min_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                               min_angle,
                                                                                 'DISTANCE')
-        max_angle_d_u = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                max_angle,
+        max_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                               max_angle,
                                                                                 'DISTANCE')
 
-        self._parent_controller.set_limit_switch_params(self.motor_id, 2, 2, max_angle_d_u, min_angle_d_u, 2)
+        self.parent_controller.set_limit_switch_params(self.motor_id, 2, 2, max_angle_d_u, min_angle_d_u, 2)
 
     def set_limits_approach_policy(self, mode: int):
         # TODO: DONT UNDERSTAND, DOESNT WORK
@@ -315,18 +315,18 @@ class _Motor:
         # AllowPartialMoves = 1
         # AllowAllMoves = 2
         # By default = 0
-        self._parent_controller.set_limits_software_approach_policy(self.motor_id, mode)
+        self.parent_controller.set_limits_software_approach_policy(self.motor_id, mode)
 
     def set_rotation_limits(self, min_angle=0, max_angle=360):
         # TODO: DONT UNDERSTAND, DOESNT WORK
         # Angles in degrees
-        min_angle_d_u = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                min_angle,
+        min_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                               min_angle,
                                                                                 'DISTANCE')
-        max_angle_d_u = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                max_angle,
+        max_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                               max_angle,
                                                                                 'DISTANCE')
-        self._parent_controller.set_stage_axis_limits(self.motor_id, min_angle_d_u, max_angle_d_u)
+        self.parent_controller.set_stage_axis_limits(self.motor_id, min_angle_d_u, max_angle_d_u)
 
     def set_rotation_mode(self, mode=2, direction=0):
         # mode: int ... 0,1,2
@@ -339,18 +339,18 @@ class _Motor:
         #   2 ... reverse
         # Does not affect homing directions
         if self.settings_loaded:
-            self._parent_controller.set_rotation_modes(self.motor_id, mode, direction)
+            self.parent_controller.set_rotation_modes(self.motor_id, mode, direction)
         else:
             return print("Settings need to be loaded first.")
 
     def set_homing_parameters(self, direction, limit, velocity, offset):
         # direction: int ...
         if self.settings_loaded:
-            velocity_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, velocity,
+            velocity_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id, velocity,
                                                                                             "VELOCITY")
-            offset_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id, offset,
+            offset_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id, offset,
                                                                                           "DISTANCE")
-            self._parent_controller.set_homing_params_block(
+            self.parent_controller.set_homing_params_block(
                 self.motor_id, direction, limit, velocity_device_units, offset_device_units)
         else:
             return print("Settings need to be loaded first.")
@@ -372,15 +372,15 @@ class _Motor:
     def set_velocity(self, velocity=20, acceleration=30):
         # Velocity over 10 is already very fast to keep up with polling rate 200ms
         # TODO: Test proper velocities
-        if self._parent_controller is not None:
-            velocity_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                            velocity,
+        if self.parent_controller is not None:
+            velocity_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                                           velocity,
                                                                                             "VELOCITY")
-            acceleration_device_units = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                                acceleration,
+            acceleration_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                                               acceleration,
                                                                                                 "ACCELERATION")
 
-            self._parent_controller.set_vel_params(self.motor_id, velocity_device_units, acceleration_device_units)
+            self.parent_controller.set_vel_params(self.motor_id, velocity_device_units, acceleration_device_units)
 
         else:
             print("Controller not connected.")
@@ -404,9 +404,9 @@ class _Motor:
             self.move_to_position(10)
 
         time.sleep(0.5)  # To make sure that controller has not been disconnected in the meantime.
-        if self._parent_controller is not None:
+        if self.parent_controller is not None:
             self._start_polling(rate=self._polling_rate)
-            self._parent_controller.home(self.motor_id)
+            self.parent_controller.home(self.motor_id)
             print(f"Homing motor {self.motor_id}...")
             self._while_moving_do(0)
             position = self.get_position()
@@ -421,16 +421,16 @@ class _Motor:
             print("Controller not connected.")
 
     def move_to_position(self, position):
-        if self._parent_controller is not None:
+        if self.parent_controller is not None:
             illegal_position = self.check_for_illegal_position(position)
             print(f"Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}")
             if not illegal_position:
                 self._start_polling()
-                position_in_device_unit = self._parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                                                  position,
+                position_in_device_unit = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
+                                                                                                 position,
                                                                                                   "DISTANCE")
                 start_time = time.time()
-                self._parent_controller.move_to_position(self.motor_id, position_in_device_unit)
+                self.parent_controller.move_to_position(self.motor_id, position_in_device_unit)
                 self._while_moving_do(1)
                 self._stop_polling()
                 end_time = time.time()
@@ -462,7 +462,7 @@ class _Motor:
         # stop_immediate(self, channel)  might be another option but following version works so far.
         # Based on documentation, stop_profiled is a controlled and safe way of stopping.
         # stop_immediate could lead to losing correct position reading, but probably would be faster.
-        self._parent_controller.stop_profiled(self.motor_id)
+        self.parent_controller.stop_profiled(self.motor_id)
 
 
 # Define motor controller object based on the hardware in the lab:
