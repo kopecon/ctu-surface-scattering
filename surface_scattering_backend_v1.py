@@ -11,17 +11,17 @@ from _surface_scattering_scan import scan
 
 
 # Editable Parameters:
-motor_1_limits = (270, 90)
-motor_2_limits = (0, 270)
-motor_3_limits = (270, 90)
+global_polling_rate = 200
+motor_1_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 1 in [deg].
+motor_2_limits = (0, 270)   # (Counter-Clockwise, Clockwise) limits of the motor 2 in [deg].
+motor_3_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 3 in [deg].
 
-limit_margin = 5  # How far [deg] beyond limit can device legally move without stopping.
+limit_margin = 2  # How far [deg] beyond limit can device legally move without stopping.
 
+# Non-editable parameters
 motor_1_limits = (motor_1_limits[0] - limit_margin, motor_1_limits[1] + limit_margin)
 motor_2_limits = (motor_2_limits[0] - limit_margin, motor_2_limits[1] + limit_margin)
 motor_3_limits = (motor_3_limits[0] - limit_margin, motor_3_limits[1] + limit_margin)
-
-global_polling_rate = 200
 
 
 class MotorController:
@@ -79,7 +79,7 @@ class MotorController:
             return 0  # Successful
         except OSError:
             print("No devices found.")
-            return 0  # Error  # TODO: Set to 1 after debugging!!!
+            return 1  # Error  # TODO: Set to 1 after debugging!!!
 
     def disconnect(self):
         """
