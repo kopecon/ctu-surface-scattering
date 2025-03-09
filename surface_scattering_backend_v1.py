@@ -8,6 +8,7 @@ from msl.equipment.resources.thorlabs import MotionControl
 
 # Custom modules:
 from _surface_scattering_scan import scan
+from _surface_scattering_calibration import calibration
 
 # Editable Parameters:
 global_polling_rate = 200
@@ -120,7 +121,7 @@ class MotorController:
 
     def calibrate(self, input_data):
         # TODO: Implement calibrating function
-        print(f"Calibrating {input_data}")
+        calibration(self.motors, input_data)
 
     def scanning(self, input_data, thread_signal):
         scan(self.motors, input_data, thread_signal)
