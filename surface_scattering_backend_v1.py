@@ -9,11 +9,10 @@ from msl.equipment.resources.thorlabs import MotionControl
 # Custom modules:
 from _surface_scattering_scan import scan
 
-
 # Editable Parameters:
 global_polling_rate = 200
 motor_1_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 1 in [deg].
-motor_2_limits = (0, 270)   # (Counter-Clockwise, Clockwise) limits of the motor 2 in [deg].
+motor_2_limits = (0, 270)  # (Counter-Clockwise, Clockwise) limits of the motor 2 in [deg].
 motor_3_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 3 in [deg].
 
 limit_margin = 2  # How far [deg] beyond limit can device legally move without stopping.
@@ -226,7 +225,7 @@ class _Motor:
             velocity_device_units = self.parent_controller.get_homing_velocity(self.motor_id)
             velocity_real_units = self.parent_controller.get_real_value_from_device_unit(self.motor_id,
                                                                                          velocity_device_units,
-                                                                                          "VELOCITY")
+                                                                                         "VELOCITY")
             return velocity_real_units, velocity_device_units
         else:
             return print("Settings need to be loaded first.")
@@ -245,10 +244,10 @@ class _Motor:
         max_angle_d_u = self.parent_controller.get_stage_axis_max_pos(self.motor_id)
         min_angle_r_u = self.parent_controller.get_real_value_from_device_unit(self.motor_id,
                                                                                min_angle_d_u,
-                                                                                'DISTANCE')
+                                                                               'DISTANCE')
         max_angle_r_u = self.parent_controller.get_real_value_from_device_unit(self.motor_id,
                                                                                max_angle_d_u,
-                                                                                'DISTANCE')
+                                                                               'DISTANCE')
         return min_angle_r_u, max_angle_r_u
 
     def get_location_quadrant(self, target_location=None):
@@ -302,10 +301,10 @@ class _Motor:
         # TODO: DONT UNDERSTAND, DOESNT WORK
         min_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                min_angle,
-                                                                                'DISTANCE')
+                                                                               'DISTANCE')
         max_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                max_angle,
-                                                                                'DISTANCE')
+                                                                               'DISTANCE')
 
         self.parent_controller.set_limit_switch_params(self.motor_id, 2, 2, max_angle_d_u, min_angle_d_u, 2)
 
@@ -322,10 +321,10 @@ class _Motor:
         # Angles in degrees
         min_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                min_angle,
-                                                                                'DISTANCE')
+                                                                               'DISTANCE')
         max_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                max_angle,
-                                                                                'DISTANCE')
+                                                                               'DISTANCE')
         self.parent_controller.set_stage_axis_limits(self.motor_id, min_angle_d_u, max_angle_d_u)
 
     def set_rotation_mode(self, mode=2, direction=0):
@@ -347,9 +346,9 @@ class _Motor:
         # direction: int ...
         if self.settings_loaded:
             velocity_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id, velocity,
-                                                                                            "VELOCITY")
+                                                                                           "VELOCITY")
             offset_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id, offset,
-                                                                                          "DISTANCE")
+                                                                                         "DISTANCE")
             self.parent_controller.set_homing_params_block(
                 self.motor_id, direction, limit, velocity_device_units, offset_device_units)
         else:
@@ -375,10 +374,10 @@ class _Motor:
         if self.parent_controller is not None:
             velocity_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                            velocity,
-                                                                                            "VELOCITY")
+                                                                                           "VELOCITY")
             acceleration_device_units = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                                acceleration,
-                                                                                                "ACCELERATION")
+                                                                                               "ACCELERATION")
 
             self.parent_controller.set_vel_params(self.motor_id, velocity_device_units, acceleration_device_units)
 
@@ -428,7 +427,7 @@ class _Motor:
                 self._start_polling()
                 position_in_device_unit = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                                  position,
-                                                                                                  "DISTANCE")
+                                                                                                 "DISTANCE")
                 start_time = time.time()
                 self.parent_controller.move_to_position(self.motor_id, position_in_device_unit)
                 self._while_moving_do(1)

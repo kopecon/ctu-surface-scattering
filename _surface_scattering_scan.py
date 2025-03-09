@@ -28,7 +28,8 @@ def _find_range(start, stop, step):
         first_half = _find_range(start, 360, step)
         second_half = _find_range(0, stop, step)
         scan_range = np.concatenate((first_half, second_half), axis=0)
-        scan_range = np.delete(scan_range, np.where(scan_range == 0))  # 360 and 0 are the same angle... remove one of those.
+        # 360 and 0 are the same angle... remove one of those.
+        scan_range = np.delete(scan_range, np.where(scan_range == 0))
         return scan_range
 
 
