@@ -462,7 +462,8 @@ class _Motor:
         # stop_immediate(self, channel)  might be another option but following version works so far.
         # Based on documentation, stop_profiled is a controlled and safe way of stopping.
         # stop_immediate could lead to losing correct position reading, but probably would be faster.
-        self.parent_controller.stop_profiled(self.motor_id)
+        if self.parent_controller is not None:
+            self.parent_controller.stop_profiled(self.motor_id)
 
 
 # Define motor controller object based on the hardware in the lab:
