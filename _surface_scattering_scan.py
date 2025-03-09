@@ -1,15 +1,16 @@
+# System libraries
 import os
-
-import pandas as pd
-from datetime import timedelta
-import nidaqmx
-from nidaqmx.constants import Edge
-from nidaqmx.constants import AcquisitionType
-import numpy as np
-import time
-from datetime import datetime
-
 import warnings
+import time
+from datetime import timedelta, datetime
+
+# Data manipulation libraries
+import pandas as pd
+import numpy as np
+
+# Hardware libraries
+import nidaqmx
+from nidaqmx.constants import Edge, AcquisitionType
 
 
 # NI-DAQmx 2025 Q1 has to be installed on the executing pc to run the scan.
