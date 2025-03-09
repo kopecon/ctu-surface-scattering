@@ -1,3 +1,7 @@
+# System libraries
+import sys
+from datetime import timedelta
+
 # GUI libraries
 from PySide6.QtGui import QPixmap, QKeyEvent
 from PySide6.QtCore import QSize, Qt, QThread, Signal
@@ -14,9 +18,6 @@ from PySide6.QtWidgets import (
 )
 # TODO: Add user input limitations based on the hardware limit. Forbid user to input illegal positions.
 # TODO: Add function: Dynamic range calibration, graphing.
-# System libraries
-import sys
-from datetime import timedelta
 
 # Custom modules:
 import surface_scattering_backend_v1
@@ -68,7 +69,7 @@ class Window(QMainWindow):
         _central_widget.setLayout(self._layout)
 
         self.setWindowTitle("Surface Scattering Measurement")
-        self.setFixedSize(QSize(620, 600))
+        self.setFixedSize(QSize(640, 600))
 
         # Measurement arguments:
         self._input_data = []
@@ -86,22 +87,29 @@ class Window(QMainWindow):
         _label_m1_to = self._label("To")
         _label_m1_step = self._label("Step")
         _label_m1_position = self._label("Position")
-        _label_m1 = self._label("Motor 1   ")
+        _label_m1 = self._label("Motor 1")
         _label_m1.setStyleSheet("qproperty-alignment: AlignRight;")
 
         self._label_m2_from = self._label("From")
         _label_m2_to = self._label("To")
         _label_m2_step = self._label("Step")
         _label_m2_position = self._label("Position")
-        _label_m2 = self._label("Motor 2   ")
+        _label_m2 = self._label("Motor 2")
         _label_m2.setStyleSheet("qproperty-alignment: AlignRight;")
 
         _label_m3_from = self._label("From")
         _label_m3_to = self._label("To")
         _label_m3_step = self._label("Step")
         _label_m3_position = self._label("Position")
-        _label_m3 = self._label("Motor 3    ")
+        _label_m3 = self._label("Motor 3")
         _label_m3.setStyleSheet("qproperty-alignment: AlignRight;")
+
+        _label_calibration_title = self._label("Calibration:")
+        _label_calibration_m1 = self._label("Motor 1")
+        _label_calibration_m2 = self._label("Motor 2")
+        _label_calibration_m3 = self._label("Motor 3")
+        _label_calibration_where = self._label("Where")
+        _label_calibration_m3_range = self._label("Range")
 
         _label_measurement_setup_title = self._label("Measurement:")
 
@@ -135,6 +143,11 @@ class Window(QMainWindow):
         self._m3_step_value = self._line_edit("30")
         self._m3_move_to_value = self._line_edit("0")
 
+        self._calibration_m1_value = self._line_edit("80")
+        self._calibration_m2_value = self._line_edit("90")
+        self._calibration_m3_value = self._line_edit("80")
+        self._calibration_m3_range_value = self._line_edit("10")
+
         self._number_of_measurement_points_value = self._line_edit("500")
 
         # Buttons
@@ -145,6 +158,7 @@ class Window(QMainWindow):
         self._move_1_to = self._push_button("Move")
         self._move_2_to = self._push_button("Move")
         self._move_3_to = self._push_button("Move")
+        self._calibrate = self._push_button("Calibrate")
         self._scan = self._push_button("Scan")
         self._stop = self._push_button("STOP")
         self._stop.setFixedSize(80, 80)
@@ -161,6 +175,10 @@ class Window(QMainWindow):
         self._move_2_to.clicked.connect(lambda: self.move_to(2, float(self._m2_move_to_value.text())))
         self._move_3_to.clicked.connect(lambda: self.move_to(3, float(self._m3_move_to_value.text())))
         self._stop.clicked.connect(lambda: self.stop_motors())
+        self._calibrate.clicked.connect(lambda: self.start_calibration([self._calibration_m1_value.text(),
+                                                                        self._calibration_m2_value.text(),
+                                                                        self._calibration_m3_value.text(),
+                                                                        self._calibration_m3_range_value.text()]))
         self._scan.clicked.connect(lambda: self.start_scanning())
         self._connection_button.clicked.connect(lambda: self.connect_or_disconnect_devices())
 
@@ -219,25 +237,37 @@ class Window(QMainWindow):
         self._layout.addWidget(self._m3_move_to_value, 8, 6, 1, 1)
         self._layout.addWidget(self._move_3_to, 8, 7, 1, 1)
         self._layout.addWidget(QHLine(), 9, 0, 1, self._layout.columnCount())
-        self._layout.addWidget(_label_measurement_setup_title, 10, 0, 1, 1)
-        self._layout.addWidget(_label_measurement_num, 11, 2, 1, 1)
-        self._layout.addWidget(self._number_of_measurement_points_value, 11, 3, 1, 1)
-        self._layout.addWidget(_label_measurement_n, 11, 4, 1, 1)
-        self._layout.addWidget(_label_scan_type, 12, 2, 1, 1)
-        self._layout.addWidget(self._measurement_1d, 12, 3, 1, 1)
-        self._layout.addWidget(self._measurement_3d, 12, 4, 1, 1)
-        self._layout.addWidget(self._scan, 13, 2, 1, 3)
-        self._layout.addWidget(_label_time_to_finish_title, 14, 2, 1, 1)
-        self._layout.addWidget(self._label_time_to_finish_value, 14, 3, 1, 1)
-        self._layout.addWidget(self._progress_bar, 15, 2, 1, 3)
-        self._layout.addWidget(QHLine(), 16, 0, 1, self._layout.columnCount())
-        self._layout.addWidget(_label_home_title, 17, 0, 1, 1)
-        self._layout.addWidget(self._stop, 17, 6, 4, 3, alignment=Qt.AlignmentFlag.AlignCenter)
-        self._layout.addWidget(self._home1, 18, 2, 1, 1)
-        self._layout.addWidget(self._home2, 18, 3, 1, 1)
-        self._layout.addWidget(self._home3, 18, 4, 1, 1)
-        self._layout.addWidget(self._home_all, 19, 3, 1, 1)
+        self._layout.addWidget(_label_calibration_title, 10, 0, 1, 1)
+        self._layout.addWidget(_label_calibration_m1, 11, 2, 1, 1)
+        self._layout.addWidget(_label_calibration_m2, 11, 3, 1, 1)
+        self._layout.addWidget(_label_calibration_m3, 11, 4, 1, 1)
+        self._layout.addWidget(QVLine(), 12, 5, 1, 1)
+        self._layout.addWidget(_label_calibration_m3_range, 11, 6, 1, 1)
+        self._layout.addWidget(_label_calibration_where, 12, 1, 1, 1)
+        self._layout.addWidget(self._calibration_m1_value, 12, 2, 1, 1)
+        self._layout.addWidget(self._calibration_m2_value, 12, 3, 1, 1)
+        self._layout.addWidget(self._calibration_m3_value, 12, 4, 1, 1)
+        self._layout.addWidget(self._calibration_m3_range_value, 12, 6, 1, 1)
+        self._layout.addWidget(self._calibrate, 12, 7, 1, 1)
+        self._layout.addWidget(QHLine(), 14, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_label_measurement_setup_title, 15, 0, 1, 1)
+        self._layout.addWidget(_label_measurement_num, 16, 2, 1, 1)
+        self._layout.addWidget(self._number_of_measurement_points_value, 16, 3, 1, 1)
+        self._layout.addWidget(_label_measurement_n, 16, 4, 1, 1)
+        self._layout.addWidget(_label_scan_type, 17, 2, 1, 1)
+        self._layout.addWidget(self._measurement_1d, 17, 3, 1, 1)
+        self._layout.addWidget(self._measurement_3d, 17, 4, 1, 1)
+        self._layout.addWidget(self._scan, 18, 2, 1, 3)
+        self._layout.addWidget(_label_time_to_finish_title, 19, 2, 1, 1)
+        self._layout.addWidget(self._label_time_to_finish_value, 19, 3, 1, 1)
+        self._layout.addWidget(self._progress_bar, 20, 2, 1, 3)
         self._layout.addWidget(QHLine(), 21, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_label_home_title, 22, 0, 1, 1)
+        self._layout.addWidget(self._stop, 22, 6, 4, 3, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._layout.addWidget(self._home1, 23, 2, 1, 1)
+        self._layout.addWidget(self._home2, 23, 3, 1, 1)
+        self._layout.addWidget(self._home3, 23, 4, 1, 1)
+        self._layout.addWidget(self._home_all, 24, 3, 1, 1)
 
         # Perform these tasks at the start of the program
         self._set_disconnected_layout()
@@ -373,6 +403,12 @@ class Window(QMainWindow):
             self.stop_motors()
 
     #  ---------------------------------------------------------------------------------------    Motor moving functions
+    def start_calibration(self, input_data):
+        worker = CalibratingThread(input_data)
+        self.workers.append(worker)
+
+        worker.start()
+
     def start_homing(self, motor_id):
         worker = HomingThread(motor_id)
         self.workers.append(worker)
@@ -454,6 +490,18 @@ class Window(QMainWindow):
         elif self._connection_button.text() == "Disconnect":
             controller.disconnect()
             self._set_disconnected_layout()
+
+
+class CalibratingThread(QThread):
+    def __init__(self, input_data):
+        super().__init__()
+        self.termination_requested = False
+        self.input_data = input_data
+
+    def run(self) -> None:
+        if self.termination_requested:
+            return  # Stop running this thread if termination is requested
+        controller.calibrate(self.input_data)
 
 
 # Threads for moving the motors:
