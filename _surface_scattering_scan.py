@@ -97,7 +97,7 @@ def _measure_scattering(
         return measurement_data, data_ratio
 
 
-def _save_file(data, data_ratio, scan_type):
+def _save_to_file(data, data_ratio, scan_type):
     name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"  # Name of the saved file
     print("Output file name:", name)
 
@@ -224,8 +224,7 @@ def scan(motors, input_data, thread_signal):
 
                 progress_count += 1
                 _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
-
-                _save_file(measurement_data, data_ratio, scan_type)
+                _save_to_file(measurement_data, data_ratio, scan_type)
 
     print("Done")
 
