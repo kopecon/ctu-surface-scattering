@@ -3,6 +3,7 @@ import os
 import warnings
 import time
 from datetime import timedelta, datetime
+import random
 
 # Data manipulation libraries
 import pandas as pd
@@ -90,10 +91,27 @@ def _measure_scattering(
             print("Pomer je:", data_ratio)
 
         return measurement_data, data_ratio
-    else:
-        print("Controller not connected")
-        measurement_data = pd.DataFrame([420, 69, 420, 69, 420])
-        data_ratio = 1.420
+    else:  # Employ fake data
+        print("Controller not connected.")
+        print("Outputting fake data.")
+        n = 0
+        column_names = ["a", "b", "c", "d", "e"]
+        measurement_data = pd.DataFrame(columns=column_names)
+        while n < int(number_of_measurement_points):
+            data = {
+                "a": [motor_1_position],
+                "b": [motor_2_position],
+                "c": [motor_3_position],
+                "d": [random.randint(42, 69)],
+                "e": [random.randint(70, 420)]}
+            current_scan = pd.DataFrame(data)
+            measurement_data = pd.concat((measurement_data, current_scan), axis=0)
+            print(measurement_data)
+            n += 1
+        measurement_data = measurement_data.mean()
+        data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
+        # To prevent pandas FutureWarning spam:
+        warnings.simplefilter(action='ignore', category=FutureWarning)
         return measurement_data, data_ratio
 
 

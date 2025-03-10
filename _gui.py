@@ -16,11 +16,13 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QCheckBox, QFrame,
 )
+
 # TODO: Add user input limitations based on the hardware limit. Forbid user to input illegal positions.
 # TODO: Add function: Dynamic range calibration, graphing.
 
 # Custom modules:
-import surface_scattering_backend_v1
+import _backend
+import _real_time_graph
 
 print("Library import done.")
 
@@ -48,7 +50,7 @@ Dependent Software:
     Kinesis user interface has to be closed while this program is running, or the controller fails to connect.
 """
 
-controller = surface_scattering_backend_v1.BSC203ThreeChannelBenchtopStepperMotorController
+controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
 
 
 def days_hours_minutes_seconds(dt):
@@ -72,6 +74,7 @@ class Window(QMainWindow):
         self.setFixedSize(QSize(640, 600))
 
         # Measurement arguments:
+        self.sensor_real_time_graph = _real_time_graph.GraphWindow()
         self._input_data = []
         self._scan_1d = False
         self._scan_3d = False
@@ -160,6 +163,7 @@ class Window(QMainWindow):
         self._move_3_to = self._push_button("Move")
         self._calibrate = self._push_button("Calibrate")
         self._scan = self._push_button("Scan")
+        self._view_scattering_graph = self._push_button("Graph")
         self._stop = self._push_button("STOP")
         self._stop.setFixedSize(80, 80)
         self._stop.setStyleSheet("QPushButton {background-color: rgb(255, 26, 26); color: white;}")
@@ -180,6 +184,7 @@ class Window(QMainWindow):
                                                                         self._calibration_m3_value.text(),
                                                                         self._calibration_m3_range_value.text()]))
         self._scan.clicked.connect(lambda: self.start_scanning())
+        self._view_scattering_graph.clicked.connect(lambda: self.toggle_scattering_graph_visibility())
         self._connection_button.clicked.connect(lambda: self.connect_or_disconnect_devices())
 
         # Progress bar
@@ -258,6 +263,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._measurement_1d, 17, 3, 1, 1)
         self._layout.addWidget(self._measurement_3d, 17, 4, 1, 1)
         self._layout.addWidget(self._scan, 18, 2, 1, 3)
+        self._layout.addWidget(self._view_scattering_graph, 18, 6, 1, 2)
         self._layout.addWidget(_label_time_to_finish_title, 19, 2, 1, 1)
         self._layout.addWidget(self._label_time_to_finish_value, 19, 3, 1, 1)
         self._layout.addWidget(self._progress_bar, 20, 2, 1, 3)
@@ -401,6 +407,12 @@ class Window(QMainWindow):
         # Does not work with "SpaceBar" key.
         if isinstance(event, QKeyEvent) and any(worker.isRunning() for worker in self.workers):
             self.stop_motors()
+
+    def toggle_scattering_graph_visibility(self):
+        if self.sensor_real_time_graph.isVisible():
+            self.sensor_real_time_graph.hide()
+        else:
+            self.sensor_real_time_graph.show()
 
     #  ---------------------------------------------------------------------------------------    Motor moving functions
     def start_calibration(self, input_data):

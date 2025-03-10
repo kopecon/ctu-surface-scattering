@@ -1,4 +1,4 @@
-from _surface_scattering_scan import _measure_scattering
+from _scan import _measure_scattering
 
 
 def calibration(motors, input_data):
@@ -19,9 +19,8 @@ def calibration(motors, input_data):
         motor_1.parent_controller,
         motor_1_position,
         motor_2_position,
-        motor_3_position)
-
-    print(measurement_data, data_ratio)
+        motor_3_position,
+        number_of_measurement_points=5)
 
     motor_3.move_to_position(motor_3_position + calibration_range)
 
@@ -29,9 +28,8 @@ def calibration(motors, input_data):
         motor_1.parent_controller,
         motor_1_position,
         motor_2_position,
-        motor_3_position)
-
-    print(measurement_data, data_ratio)
+        motor_3_position,
+        number_of_measurement_points=5)
 
     motor_3.move_to_position(motor_3_position - calibration_range)
 
@@ -39,6 +37,5 @@ def calibration(motors, input_data):
         motor_1.parent_controller,
         motor_1_position,
         motor_2_position,
-        motor_3_position)
-
-    print(measurement_data, data_ratio)
+        motor_3_position,
+        number_of_measurement_points=5)
