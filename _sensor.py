@@ -29,7 +29,5 @@ def measure_scattering(controller):
             sensor_data_2 = float(sensor_data[1])
 
             return sensor_data_1, sensor_data_2
-
     else:
-        print("Outputting fake data:")
         return random.randint(0, 100), random.randint(101, 200)

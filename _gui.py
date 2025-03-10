@@ -17,7 +17,6 @@ from PySide6.QtWidgets import (
     QCheckBox, QFrame,
 )
 
-# TODO: Add user input limitations based on the hardware limit. Forbid user to input illegal positions.
 # TODO: Add function: Dynamic range calibration, graphing.
 
 # Custom modules:
@@ -74,7 +73,7 @@ class Window(QMainWindow):
         self.setFixedSize(QSize(640, 600))
 
         # Measurement arguments:
-        self.sensor_real_time_graph = _real_time_graph.GraphWindow()
+        self.sensor_real_time_graph = _real_time_graph.GraphWindow(controller)
         self._input_data = []
         self._scan_1d = False
         self._scan_3d = False
@@ -414,7 +413,7 @@ class Window(QMainWindow):
         else:
             self.sensor_real_time_graph.show()
 
-    #  ---------------------------------------------------------------------------------------    Motor moving functions
+    #  -----------------------------------------------------------------------------------    Hardware control functions
     def start_calibration(self, input_data):
         worker = CalibratingThread(input_data)
         self.workers.append(worker)
@@ -485,7 +484,7 @@ class Window(QMainWindow):
 
     def stop_motors(self):
         for worker in self.workers:
-            worker.termination_request = True  # TODO: Check if necessary or if it works at all
+            worker.termination_request = True
         controller.stop_motors_and_disconnect()
         self._set_disconnected_layout()
 

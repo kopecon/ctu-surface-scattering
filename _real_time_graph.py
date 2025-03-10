@@ -2,14 +2,15 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtCore import QTimer
 import pyqtgraph as pg
 import sys
-from random import randint
+
+# Custom libraries
+from _sensor import measure_scattering
 
 
 class GraphWindow(QMainWindow):
-
-    def __init__(self):
+    def __init__(self, controller):
         super().__init__()
-
+        self.controller = controller
         self.graphWidget = pg.PlotWidget()
         self.setCentralWidget(self.graphWidget)
 
@@ -32,8 +33,7 @@ class GraphWindow(QMainWindow):
             self.y = self.y[1:]  # Remove the first
 
         self.x.append(self.x[-1] + 0.5)  # Add a new value 1 higher than the last.
-        self.y.append(randint(0, 100))  # Add a new random value.
-
+        self.y.append(measure_scattering(None)[0])
         self.data_line.setData(self.x, self.y)  # Update the data.
 
 
