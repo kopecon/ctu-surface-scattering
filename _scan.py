@@ -1,23 +1,17 @@
 # System libraries
 import os
-import warnings
 import time
+import warnings
 from datetime import timedelta, datetime
-import random
+
 
 # Data manipulation libraries
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-# Hardware libraries
-import nidaqmx
-from nidaqmx.constants import Edge, AcquisitionType
+# Custom libraries
+from _sensor import measure_scattering
 
-
-# NI-DAQmx 2025 Q1 has to be installed on the executing pc to run the scan.
-# NI-DAQmx 2025 Q1 download: https://www.ni.com/en/support/downloads/drivers/download.ni-daq-mx.html?srsltid=AfmBOooJ-Ko5HpJHEr4yPzQEZKufBWdBc1JjWhomtdJ27QKXivgjvTBr#559060
-# TODO: Change saving file management
-# TODO: Test functionality
 
 def _find_range(start, stop, step):
     # TODO: Test all range options and fix illegal combinations (m3 from 270 to 90 etc...)
@@ -41,78 +35,6 @@ def _days_hours_minutes_seconds(dt):
     minutes = (dt.seconds // 60) % 60
     seconds = dt.seconds - ((dt.seconds // 3600) * 3600) - ((dt.seconds % 3600 // 60) * 60)
     return days, hours, minutes, seconds
-
-
-def _measure_scattering(
-        controller, motor_1_position, motor_2_position, motor_3_position, number_of_measurement_points=1):
-    if controller is not None:
-        with nidaqmx.Task() as task:
-            task.ai_channels.add_ai_voltage_chan(
-                "myDAQ1/ai0:1"
-            )
-            task.timing.cfg_samp_clk_timing(
-                100000,
-                source="",
-                active_edge=Edge.RISING,
-                sample_mode=AcquisitionType.FINITE,
-                samps_per_chan=10,
-            )
-
-            n = 0
-
-            column_names = ["a", "b", "c", "d", "e"]
-            measurement_data = pd.DataFrame(columns=column_names)
-
-            while n < int(number_of_measurement_points):
-                sensor_data = task.read()
-                data = {
-                    "a": [motor_1_position],
-                    "b": [motor_2_position],
-                    "c": [motor_3_position],
-                    "d": [sensor_data[0]],
-                    "e": [sensor_data[1]]}
-                current_scan = pd.DataFrame(data)
-                measurement_data = pd.concat((measurement_data, current_scan), axis=0)
-
-                # To prevent pandas FutureWarning spam:
-                warnings.simplefilter(action='ignore', category=FutureWarning)
-
-                n += 1
-
-            measurement_data = measurement_data.mean()
-            print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
-            print(
-                "prumer Signal1:",
-                measurement_data.iloc[3],
-                " a prumer Signal2:",
-                measurement_data.iloc[4],
-            )
-            data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
-            print("Pomer je:", data_ratio)
-
-        return measurement_data, data_ratio
-    else:  # Employ fake data
-        print("Controller not connected.")
-        print("Outputting fake data.")
-        n = 0
-        column_names = ["a", "b", "c", "d", "e"]
-        measurement_data = pd.DataFrame(columns=column_names)
-        while n < int(number_of_measurement_points):
-            data = {
-                "a": [motor_1_position],
-                "b": [motor_2_position],
-                "c": [motor_3_position],
-                "d": [random.randint(42, 69)],
-                "e": [random.randint(70, 420)]}
-            current_scan = pd.DataFrame(data)
-            measurement_data = pd.concat((measurement_data, current_scan), axis=0)
-            print(measurement_data)
-            n += 1
-        measurement_data = measurement_data.mean()
-        data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
-        # To prevent pandas FutureWarning spam:
-        warnings.simplefilter(action='ignore', category=FutureWarning)
-        return measurement_data, data_ratio
 
 
 def _save_to_file(data, data_ratio, scan_type):
@@ -153,6 +75,43 @@ def _update_progressbar(progress_count, start_time, full_range, thread_signal):
     output_signal = [progress, time_to_finish]
     if hasattr(thread_signal, 'emit'):
         thread_signal.emit(output_signal)
+
+
+def _collect_sensor_data(
+        controller, motor_1_position, motor_2_position, motor_3_position, number_of_measurement_points=1):
+    n = 0
+
+    column_names = ["a", "b", "c", "d", "e"]
+    measurement_data = pd.DataFrame(columns=column_names)
+
+    while n < int(number_of_measurement_points):
+        sensor_data = measure_scattering(controller)
+        data = {
+            "a": [motor_1_position],
+            "b": [motor_2_position],
+            "c": [motor_3_position],
+            "d": [sensor_data[0]],
+            "e": [sensor_data[1]]}
+        current_scan = pd.DataFrame(data)
+        measurement_data = pd.concat((measurement_data, current_scan), axis=0)
+
+        # To prevent pandas FutureWarning spam:
+        warnings.simplefilter(action='ignore', category=FutureWarning)
+
+        n += 1
+
+    measurement_data = measurement_data.mean()
+    print("m1:", measurement_data.iloc[0], " m2:", measurement_data.iloc[1], " m3:", measurement_data.iloc[2])
+    print(
+        "prumer Signal1:",
+        measurement_data.iloc[3],
+        " a prumer Signal2:",
+        measurement_data.iloc[4],
+    )
+    data_ratio = measurement_data.iloc[3] / measurement_data.iloc[4]
+    print("Pomer je:", data_ratio)
+
+    return measurement_data, data_ratio
 
 
 def scan(motors, input_data, thread_signal):
@@ -233,7 +192,7 @@ def scan(motors, input_data, thread_signal):
                 motor_2_position = angles[1]
                 motor_3_position = angles[2]
 
-                measurement_data, data_ratio = _measure_scattering(
+                measurement_data, data_ratio = _collect_sensor_data(
                     motor_1.parent_controller,
                     motor_1_position,
                     motor_2_position,
@@ -245,8 +204,3 @@ def scan(motors, input_data, thread_signal):
                 _save_to_file(measurement_data, data_ratio, scan_type)
 
     print("Done")
-
-
-if __name__ == '__main__':
-    # Fake data for scan testing
-    scan([None, None, None, None], input_data=[0, 180, 30, 0, 180, 30, 0, 180, 30, 5, True], thread_signal=1)
