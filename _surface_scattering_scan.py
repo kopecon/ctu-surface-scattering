@@ -42,8 +42,8 @@ def _days_hours_minutes_seconds(dt):
     return days, hours, minutes, seconds
 
 
-def _conduct_measurement(
-        controller, number_of_measurement_points, motor_1_position, motor_2_position, motor_3_position):
+def _measure_scattering(
+        controller, motor_1_position, motor_2_position, motor_3_position, number_of_measurement_points=1):
     if controller is not None:
         with nidaqmx.Task() as task:
             task.ai_channels.add_ai_voltage_chan(
@@ -97,8 +97,11 @@ def _conduct_measurement(
         return measurement_data, data_ratio
 
 
-def _save_file(name, data, data_ratio, scan_type):
-    output_path = "./DataOutput/"
+def _save_file(data, data_ratio, scan_type):
+    name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"  # Name of the saved file
+    print("Output file name:", name)
+
+    output_path = "./DataOutput/"  # Where the file is going to be saved
     os.makedirs(output_path, exist_ok=True)
 
     if scan_type == '1D':
@@ -110,7 +113,8 @@ def _save_file(name, data, data_ratio, scan_type):
             os.makedirs(f"{output_path}/data_3D/")
         output_path = f"{output_path}/data_3D/"
     with open(f'{output_path}/{name}', "a") as f:
-        line = "{};{};{};{};{};{}".format(data.iloc[0], data.iloc[1], data.iloc[2], data.iloc[3], data.iloc[4], data_ratio)
+        line = "{};{};{};{};{};{}".format(
+            data.iloc[0], data.iloc[1], data.iloc[2], data.iloc[3], data.iloc[4], data_ratio)
         print(line, file=f)
 
 
@@ -139,6 +143,7 @@ def scan(motors, input_data, thread_signal):
 
     angles = [0, 0, 0]
 
+    # Decompose input data:
     if input_data[10]:
         scan_type = '1D'
     else:
@@ -147,9 +152,6 @@ def scan(motors, input_data, thread_signal):
     motor_1 = motors[1]
     motor_2 = motors[2]
     motor_3 = motors[3]
-
-    name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"
-    print("Output file name:", name)
 
     motor_1_from = float(input_data[0])
     motor_1_to = float(input_data[1])
@@ -213,17 +215,17 @@ def scan(motors, input_data, thread_signal):
                 motor_2_position = angles[1]
                 motor_3_position = angles[2]
 
-                measurement_data, data_ratio = _conduct_measurement(
+                measurement_data, data_ratio = _measure_scattering(
                     motor_1.parent_controller,
-                    number_of_measurement_points,
                     motor_1_position,
                     motor_2_position,
-                    motor_3_position)
+                    motor_3_position,
+                    number_of_measurement_points)
 
                 progress_count += 1
                 _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
 
-                _save_file(name, measurement_data, data_ratio, scan_type)
+                _save_file(measurement_data, data_ratio, scan_type)
 
     print("Done")
 
