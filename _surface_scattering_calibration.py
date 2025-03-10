@@ -1,3 +1,5 @@
+from _surface_scattering_scan import _measure_scattering
+
 
 def calibration(motors, input_data):
     print("Calibration started.")
@@ -12,8 +14,31 @@ def calibration(motors, input_data):
     motor_2.move_to_position(motor_2_position)
     motor_3.move_to_position(motor_3_position)
     print("Motors in position.")
-    print("Scanning.")
+
+    measurement_data, data_ratio = _measure_scattering(
+        motor_1.parent_controller,
+        motor_1_position,
+        motor_2_position,
+        motor_3_position)
+
+    print(measurement_data, data_ratio)
+
     motor_3.move_to_position(motor_3_position + calibration_range)
-    print("Scanning.")
+
+    measurement_data, data_ratio = _measure_scattering(
+        motor_1.parent_controller,
+        motor_1_position,
+        motor_2_position,
+        motor_3_position)
+
+    print(measurement_data, data_ratio)
+
     motor_3.move_to_position(motor_3_position - calibration_range)
-    print("Scanning.")
+
+    measurement_data, data_ratio = _measure_scattering(
+        motor_1.parent_controller,
+        motor_1_position,
+        motor_2_position,
+        motor_3_position)
+
+    print(measurement_data, data_ratio)
