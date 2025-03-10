@@ -7,8 +7,8 @@ from msl.equipment import (EquipmentRecord, ConnectionRecord, Backend)
 from msl.equipment.resources.thorlabs import MotionControl
 
 # Custom modules:
-from _surface_scattering_scan import scan
-from _surface_scattering_calibration import calibration
+from _scan import scan
+from _calibration import calibration
 
 # Editable Parameters:
 global_polling_rate = 200
