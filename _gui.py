@@ -421,9 +421,10 @@ class Window(QMainWindow):
         worker.start()
 
     def start_homing(self, motor_id):
-        worker = HomingThread(motor_id)
+        home_button = self.__getattribute__(f'_home{motor_id}')
+        home_all_button = self._home_all
+        worker = HomingThread(motor_id, home_button, home_all_button)
         self.workers.append(worker)
-
         worker.start()
 
     def move_to(self, motor_id, position):
@@ -479,6 +480,7 @@ class Window(QMainWindow):
 
         self._disable_every_widget()
         self._stop.setEnabled(True)
+        self._view_scattering_graph.setEnabled(True)
 
         worker.start()
 
@@ -518,15 +520,22 @@ class CalibratingThread(QThread):
 # Threads for moving the motors:
 class HomingThread(QThread):
 
-    def __init__(self, motor_id):
+    def __init__(self, motor_id: int, motor_home_button: QPushButton, motor_home_all_button: QPushButton):
         super().__init__()
         self.termination_requested = False
         self._active_motor = controller.motors[motor_id]
+        self.motor_home_button = motor_home_button
+        self.motor_home_all_button = motor_home_all_button
 
     def run(self) -> None:
         if self.termination_requested:
             return  # Stop running this thread if termination is requested
+        self.motor_home_button.setEnabled(False)
+        self.motor_home_all_button.setEnabled(False)
         self._active_motor.home(velocity=10)
+        self.motor_home_button.setEnabled(True)
+        self.motor_home_all_button.setEnabled(True)
+        return
 
 
 class MovingThread(QThread):
