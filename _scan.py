@@ -85,7 +85,7 @@ def _collect_sensor_data(
     measurement_data = pd.DataFrame(columns=column_names)
 
     while n < int(number_of_measurement_points):
-        sensor_data = measure_scattering(controller)
+        sensor_data = measure_scattering()
         data = {
             "a": [motor_1_position],
             "b": [motor_2_position],
