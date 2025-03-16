@@ -33,12 +33,12 @@ class GraphWindow(QMainWindow):
             self.y = self.y[1:]  # Remove the first
 
         self.x.append(self.x[-1] + 0.5)  # Add a new value 1 higher than the last.
-        self.y.append(measure_scattering(None)[0])
+        self.y.append(measure_scattering()[0])
         self.data_line.setData(self.x, self.y)  # Update the data.
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    main = GraphWindow()
+    main = GraphWindow(controller=None)
     main.show()
     app.exec()
