@@ -73,7 +73,7 @@ class Window(QMainWindow):
         self.setFixedSize(QSize(640, 600))
 
         # Measurement arguments:
-        self.sensor_real_time_graph = _real_time_graph.GraphWindow(controller)
+        self.sensor_real_time_graph = _real_time_graph.GraphWindow()
         self._input_data = []
         self._scan_1d = False
         self._scan_3d = False
@@ -88,21 +88,21 @@ class Window(QMainWindow):
         self._label_m1_from = self._label("From")  # Text is being changed => self.
         _label_m1_to = self._label("To")
         _label_m1_step = self._label("Step")
-        _label_m1_position = self._label("Position")
+        self._label_m1_position = self._label("Position")
         _label_m1 = self._label("Motor 1")
         _label_m1.setStyleSheet("qproperty-alignment: AlignRight;")
 
         self._label_m2_from = self._label("From")
         _label_m2_to = self._label("To")
         _label_m2_step = self._label("Step")
-        _label_m2_position = self._label("Position")
+        self._label_m2_position = self._label("Position")
         _label_m2 = self._label("Motor 2")
         _label_m2.setStyleSheet("qproperty-alignment: AlignRight;")
 
         _label_m3_from = self._label("From")
         _label_m3_to = self._label("To")
         _label_m3_step = self._label("Step")
-        _label_m3_position = self._label("Position")
+        self._label_m3_position = self._label("Position")
         _label_m3 = self._label("Motor 3")
         _label_m3.setStyleSheet("qproperty-alignment: AlignRight;")
 
@@ -181,7 +181,10 @@ class Window(QMainWindow):
         self._calibrate.clicked.connect(lambda: self.start_calibration([self._calibration_m1_value.text(),
                                                                         self._calibration_m2_value.text(),
                                                                         self._calibration_m3_value.text(),
-                                                                        self._calibration_m3_range_value.text()]))
+                                                                        self._calibration_m3_range_value.text(),
+                                                                        self._m3_step_value.text(),
+                                                                        self._number_of_measurement_points_value.text()
+                                                                        ]))
         self._scan.clicked.connect(lambda: self.start_scanning())
         self._view_scattering_graph.clicked.connect(lambda: self.toggle_scattering_graph_visibility())
         self._connection_button.clicked.connect(lambda: self.connect_or_disconnect_devices())
@@ -210,7 +213,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._label_m1_from, 3, 2, 1, 1)
         self._layout.addWidget(_label_m1_to, 3, 3, 1, 1)
         self._layout.addWidget(_label_m1_step, 3, 4, 1, 1)
-        self._layout.addWidget(_label_m1_position, 3, 6, 1, 1)
+        self._layout.addWidget(self._label_m1_position, 3, 6, 1, 1)
         self._layout.addWidget(_label_m1, 4, 1, 1, 1)
         self._layout.addWidget(self._m1_from_value, 4, 2, 1, 1)
         self._layout.addWidget(self._m1_to_value, 4, 3, 1, 1)
@@ -221,7 +224,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._label_m2_from, 5, 2, 1, 1)
         self._layout.addWidget(_label_m2_to, 5, 3, 1, 1)
         self._layout.addWidget(_label_m2_step, 5, 4, 1, 1)
-        self._layout.addWidget(_label_m2_position, 5, 6, 1, 1)
+        self._layout.addWidget(self._label_m2_position, 5, 6, 1, 1)
         self._layout.addWidget(_label_m2, 6, 1, 1, 1)
         self._layout.addWidget(self._m2_from_value, 6, 2, 1, 1)
         self._layout.addWidget(self._m2_to_value, 6, 3, 1, 1)
@@ -232,7 +235,7 @@ class Window(QMainWindow):
         self._layout.addWidget(_label_m3_from, 7, 2, 1, 1)
         self._layout.addWidget(_label_m3_to, 7, 3, 1, 1)
         self._layout.addWidget(_label_m3_step, 7, 4, 1, 1)
-        self._layout.addWidget(_label_m3_position, 7, 6, 1, 1)
+        self._layout.addWidget(self._label_m3_position, 7, 6, 1, 1)
         self._layout.addWidget(_label_m3, 8, 1, 1, 1)
         self._layout.addWidget(self._m3_from_value, 8, 2, 1, 1)
         self._layout.addWidget(self._m3_to_value, 8, 3, 1, 1)

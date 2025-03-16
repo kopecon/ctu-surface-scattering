@@ -8,9 +8,8 @@ from _sensor import measure_scattering
 
 
 class GraphWindow(QMainWindow):
-    def __init__(self, controller):
+    def __init__(self):
         super().__init__()
-        self.controller = controller
         self.graphWidget = pg.PlotWidget()
         self.setCentralWidget(self.graphWidget)
 
@@ -39,6 +38,6 @@ class GraphWindow(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    main = GraphWindow(controller=None)
+    main = GraphWindow()
     main.show()
     app.exec()
