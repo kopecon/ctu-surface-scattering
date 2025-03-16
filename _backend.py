@@ -1,4 +1,5 @@
 # System libraries
+import math
 import os
 import time
 
@@ -164,6 +165,8 @@ class _Motor:
             self.set_rotation_mode(mode=1, direction=1)  # "Move to position" moves clockwise for positive values
             self._set_backwards_homing()  # Always home anticlockwise
 
+        self.current_position = self.get_position()[0]
+
     # -----------------------------------------------------------------------------------   Motor Information Collecting
     def _while_moving_do(self, value: int):
         # Works in combination with polling. "start polling, wait, stop polling" to perform tasks while moving.
@@ -237,6 +240,35 @@ class _Motor:
         acceleration_real = self.parent_controller.get_real_value_from_device_unit(
             self.motor_id, acceleration_d_u, "ACCELERATION")
         return velocity_real, acceleration_real
+
+    def get_travel_time(self, distance):
+        velocity = self.get_velocity()[0]
+        acceleration = self.get_velocity()[1]
+        current_velocity = 0.01
+        travel_time = 0
+        distance_needed_to_stop = 0
+        traveled_distance = 0
+        dt = 0.1
+        while traveled_distance <= distance - distance_needed_to_stop:
+            while current_velocity <= velocity and traveled_distance <= distance - distance_needed_to_stop:
+                # Acceleration
+                current_velocity = math.sqrt(2 * acceleration * travel_time)
+                time.sleep(dt)
+                travel_time = travel_time + dt
+                traveled_distance = traveled_distance + current_velocity * dt
+                distance_needed_to_stop = current_velocity / 2 / acceleration
+            # Constant speed
+            traveled_distance = traveled_distance + current_velocity * dt
+            time.sleep(dt)
+            travel_time = travel_time + dt
+            distance_needed_to_stop = current_velocity / 2 / acceleration
+
+        while current_velocity >= 0:
+            # Deceleration
+            traveled_distance = traveled_distance + current_velocity * dt
+            current_velocity = current_velocity - 2*acceleration * dt
+
+        return travel_time, traveled_distance
 
     def get_homing_velocity(self):
         if self.settings_loaded:
@@ -429,6 +461,7 @@ class _Motor:
         else:
             print(f"Motor {self.motor_id} failed to home.")
         self._stop_polling()
+        self.current_position = self.get_position()[0]
 
     def move_to_position(self, position):
         illegal_position = self.check_for_illegal_position(position)
@@ -463,12 +496,14 @@ class _Motor:
                     self.move_to_position(position)  # Rotate anticlockwise
         else:
             print("Movement would result in illegal position")
+        self.current_position = self.get_position()[0]
 
     def stop(self):
         # stop_immediate(self, channel)  might be another option but following version works so far.
         # Based on documentation, stop_profiled is a controlled and safe way of stopping.
         # stop_immediate could lead to losing correct position reading, but probably would be faster.
         self.parent_controller.stop_profiled(self.motor_id)
+        self.current_position = self.get_position()[0]
         print(f"        Motor {self.motor_id} stopped.")
 
 
@@ -509,9 +544,12 @@ class _VirtualMotor(_Motor):
 
     def home(self, velocity):
         self.current_position = 0
+        time.sleep(2)
         print(f"Motor {self.motor_id} homed.")
 
     def move_to_position(self, position):
+        time.sleep(2)
+        print(self.get_travel_time(abs(position)-self.get_position()))
         self.current_position = position
         print(f"Motor {self.motor_id} moved to {position}.")
 
