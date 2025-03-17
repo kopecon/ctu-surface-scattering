@@ -30,5 +30,5 @@ def measure_scattering():
 
             return sensor_data_1, sensor_data_2
     except nidaqmx.errors.DaqNotFoundError:
-        print("Controller not found. Returning random data.")
+        # print("Controller not found. Returning random data.")
         return random.randint(0, 100), random.randint(101, 200)

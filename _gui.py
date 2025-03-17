@@ -1,5 +1,6 @@
 # System libraries
 import sys
+import time
 from datetime import timedelta
 
 # GUI libraries
@@ -280,7 +281,7 @@ class Window(QMainWindow):
         # Perform these tasks at the start of the program
         self._set_disconnected_layout()
         self.connect_or_disconnect_devices()
-
+        self.start_background_tasks()
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
     def _label(text: str) -> QLabel:
@@ -339,6 +340,11 @@ class Window(QMainWindow):
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(False)
+
+    def update_motor_positions(self):
+        self._label_m1_position.setText(f"Position: {controller.motor_1.current_position}")
+        self._label_m2_position.setText(f"Position: {controller.motor_2.current_position}")
+        self._label_m3_position.setText(f"Position: {controller.motor_3.current_position}")
 
     def _set_disconnected_layout(self):
         self._disable_every_widget(QPushButton)
@@ -417,6 +423,12 @@ class Window(QMainWindow):
             self.sensor_real_time_graph.show()
 
     #  -----------------------------------------------------------------------------------    Hardware control functions
+    def start_background_tasks(self):
+        worker = BackgroundTasksThread(self)
+        self.workers.append(worker)  # Associating the worker with the object prevents crashing
+
+        worker.start()
+
     def start_calibration(self, input_data):
         worker = CalibratingThread(input_data)
         self.workers.append(worker)
@@ -481,7 +493,7 @@ class Window(QMainWindow):
         worker.finished.connect(self._reset_layout)
         worker.thread_signal.connect(self._update_progress_bar)
 
-        self._disable_every_widget()
+        self._disable_every_widget(QPushButton)
         self._stop.setEnabled(True)
         self._view_scattering_graph.setEnabled(True)
 
@@ -518,6 +530,7 @@ class CalibratingThread(QThread):
         if self.termination_requested:
             return  # Stop running this thread if termination is requested
         controller.calibrate(self.input_data)
+        return
 
 
 # Threads for moving the motors:
@@ -553,6 +566,7 @@ class MovingThread(QThread):
         if self.termination_requested:
             return  # Stop running this thread if termination is requested
         self._active_motor.move_to_position(self._position)
+        return
 
 
 class ScanningThread(QThread):
@@ -567,6 +581,18 @@ class ScanningThread(QThread):
         if self.termination_requested:
             return  # Stop running this thread if termination is requested
         controller.scanning(self.input_data, self.thread_signal)
+        return
+
+
+class BackgroundTasksThread(QThread):
+    def __init__(self, active_window: Window):
+        super().__init__()
+        self.active_window = active_window
+
+    def run(self) -> None:
+        while self.active_window.isWindow():
+            self.active_window.update_motor_positions()
+            time.sleep(0.5)  # To not overload the program
 
 
 class QHLine(QFrame):

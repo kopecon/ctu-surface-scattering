@@ -165,7 +165,7 @@ class _Motor:
             self.set_rotation_mode(mode=1, direction=1)  # "Move to position" moves clockwise for positive values
             self._set_backwards_homing()  # Always home anticlockwise
 
-        self.current_position = self.get_position()[0]
+        self.current_position = 0
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
     def _while_moving_do(self, value: int):
@@ -543,12 +543,12 @@ class _VirtualMotor(_Motor):
         self.current_acceleration = acceleration
 
     def home(self, velocity):
+        time.sleep(1)
         self.current_position = 0
-        time.sleep(2)
         print(f"Motor {self.motor_id} homed.")
 
     def move_to_position(self, position):
-        time.sleep(2)
+        time.sleep(1)
         print(self.get_travel_time(abs(position)-self.get_position()))
         self.current_position = position
         print(f"Motor {self.motor_id} moved to {position}.")
