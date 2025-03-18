@@ -39,6 +39,5 @@ def calibration(motors, input_data):
             scattering_value = _sensor.measure_scattering()[0]
             scattering_data.append(scattering_value)
         scattering_data_avg.append(sum(scattering_data)/len(scattering_data))
-    print(calibration_steps)
-    print(scattering_data_avg)
     plot_data(calibration_steps, scattering_data_avg)
+    print("Calibration finished.")

@@ -432,7 +432,9 @@ class Window(QMainWindow):
     def start_calibration(self, input_data):
         worker = CalibratingThread(input_data)
         self.workers.append(worker)
+        self.sensor_real_time_graph.timer.stop()
         worker.start()
+        worker.finished.connect(lambda: self.sensor_real_time_graph.timer.start())
 
     def start_homing(self, motor_id):
         worker = HomingThread(motor_id)
@@ -497,14 +499,16 @@ class Window(QMainWindow):
         print("Input Data: ", self._input_data)
         worker = ScanningThread(self._input_data)
         self.workers.append(worker)
-        worker.finished.connect(self._reset_layout)
         worker.thread_signal.connect(self._update_progress_bar)
 
         self._disable_every_widget(QPushButton)
         self._stop.setEnabled(True)
         self._view_scattering_graph.setEnabled(True)
 
+        self.sensor_real_time_graph.timer.stop()
         worker.start()
+        worker.finished.connect(lambda: self.sensor_real_time_graph.timer.start())
+        worker.finished.connect(self._reset_layout)
 
     def stop_motors(self):
         controller.stop_motors_and_disconnect()
