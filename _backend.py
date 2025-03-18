@@ -431,7 +431,7 @@ class _Motor:
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
 
-    def home(self, velocity):
+    def home(self, velocity=10):
         quadrant = self.get_location_quadrant()
         # Set the proper direction of homing based on the motor position
         if self.motor_id != 2:
