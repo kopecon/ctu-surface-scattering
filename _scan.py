@@ -77,8 +77,7 @@ def _update_progressbar(progress_count, start_time, full_range, thread_signal):
         thread_signal.emit(output_signal)
 
 
-def _collect_sensor_data(
-        controller, motor_1_position, motor_2_position, motor_3_position, number_of_measurement_points=1):
+def _collect_sensor_data(motor_1_position, motor_2_position, motor_3_position, number_of_measurement_points=1):
     n = 0
 
     column_names = ["a", "b", "c", "d", "e"]
