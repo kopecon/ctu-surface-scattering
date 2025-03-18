@@ -192,7 +192,6 @@ def scan(motors, input_data, thread_signal):
                 motor_3_position = angles[2]
 
                 measurement_data, data_ratio = _collect_sensor_data(
-                    motor_1.parent_controller,
                     motor_1_position,
                     motor_2_position,
                     motor_3_position,
