@@ -542,7 +542,7 @@ class _VirtualMotor(_Motor):
         self.current_velocity = velocity
         self.current_acceleration = acceleration
 
-    def home(self, velocity):
+    def home(self, velocity=10):
         time.sleep(1)
         self.current_position = 0
         print(f"Motor {self.motor_id} homed.")
