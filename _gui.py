@@ -172,9 +172,7 @@ class Window(QMainWindow):
         self._home1.clicked.connect(lambda: self.start_homing(1))
         self._home2.clicked.connect(lambda: self.start_homing(2))
         self._home3.clicked.connect(lambda: self.start_homing(3))
-        self._home_all.clicked.connect(lambda: self.start_homing(1))
-        self._home_all.clicked.connect(lambda: self.start_homing(2))
-        self._home_all.clicked.connect(lambda: self.start_homing(3))
+        self._home_all.clicked.connect(lambda: self.start_homing_all())
         self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._m1_move_to_value.text())))
         self._move_2_to.clicked.connect(lambda: self.move_to(2, float(self._m2_move_to_value.text())))
         self._move_3_to.clicked.connect(lambda: self.move_to(3, float(self._m3_move_to_value.text())))
@@ -282,6 +280,9 @@ class Window(QMainWindow):
         self._set_disconnected_layout()
         self.connect_or_disconnect_devices()
         self.start_background_tasks()
+        # Disable movement until initial homing is done
+        self._disable_every_widget(QPushButton)
+        self._home_all.setEnabled(True)
 
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
@@ -441,6 +442,18 @@ class Window(QMainWindow):
         self.workers.append(worker)
         worker.start()
 
+    def start_homing_all(self):
+        worker_1 = HomingThread(1, self._home1, self._home_all)
+        worker_2 = HomingThread(2, self._home2, self._home_all)
+        worker_3 = HomingThread(3, self._home3, self._home_all)
+        self.workers.append(worker_1)
+        self.workers.append(worker_2)
+        self.workers.append(worker_3)
+        worker_1.start()
+        worker_2.start()
+        worker_3.start()
+        self._enable_every_widget(QPushButton)
+
     def move_to(self, motor_id, position):
         worker = MovingThread(motor_id, position)
         self.workers.append(worker)  # Associating the worker with the object prevents crashing
@@ -539,7 +552,7 @@ class HomingThread(QThread):
     def run(self) -> None:
         self.motor_home_button.setEnabled(False)
         self.motor_home_all_button.setEnabled(False)
-        self._active_motor.home(velocity=10)
+        self._active_motor.home()
         self.motor_home_button.setEnabled(True)
         self.motor_home_all_button.setEnabled(True)
         return
