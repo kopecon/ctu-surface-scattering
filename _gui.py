@@ -344,9 +344,9 @@ class Window(QMainWindow):
                 widget.setEnabled(False)
 
     def update_motor_positions(self):
-        self._label_m1_position.setText(f"Position: {controller.motor_1.current_position}")
-        self._label_m2_position.setText(f"Position: {controller.motor_2.current_position}")
-        self._label_m3_position.setText(f"Position: {controller.motor_3.current_position}")
+        self._label_m1_position.setText(f"Position: {round(controller.motor_1.current_position,3)}")
+        self._label_m2_position.setText(f"Position: {round(controller.motor_2.current_position,3)}")
+        self._label_m3_position.setText(f"Position: {round(controller.motor_3.current_position,3)}")
 
     def _set_disconnected_layout(self):
         self._disable_every_widget(QPushButton)
@@ -432,32 +432,27 @@ class Window(QMainWindow):
     def start_calibration(self, input_data):
         worker = CalibratingThread(input_data)
         self.workers.append(worker)
-
         worker.start()
 
     def start_homing(self, motor_id):
-        home_button = self.__getattribute__(f'_home{motor_id}')
-        home_all_button = self._home_all
-        worker = HomingThread(motor_id, home_button, home_all_button)
+        worker = HomingThread(motor_id)
         self.workers.append(worker)
+        self.__getattribute__(f'_home{motor_id}').setEnabled(False)  # Disable homing button for current motor
+        self._home_all.setEnabled(False)
         worker.start()
+        # Enable homing button for the current motor once homing finished
+        worker.finished.connect(lambda: self.__getattribute__(f'_home{motor_id}').setEnabled(True))
+        worker.finished.connect(lambda: self._home_all.setEnabled(True))
 
     def start_homing_all(self):
-        worker_1 = HomingThread(1, self._home1, self._home_all)
-        worker_2 = HomingThread(2, self._home2, self._home_all)
-        worker_3 = HomingThread(3, self._home3, self._home_all)
-        self.workers.append(worker_1)
-        self.workers.append(worker_2)
-        self.workers.append(worker_3)
-        worker_1.start()
-        worker_2.start()
-        worker_3.start()
+        self.start_homing(1)
+        self.start_homing(2)
+        self.start_homing(3)
         self._enable_every_widget(QPushButton)
 
     def move_to(self, motor_id, position):
         worker = MovingThread(motor_id, position)
         self.workers.append(worker)  # Associating the worker with the object prevents crashing
-
         worker.start()
 
     def start_scanning(self):
@@ -543,18 +538,12 @@ class CalibratingThread(QThread):
 # Threads for moving the motors:
 class HomingThread(QThread):
 
-    def __init__(self, motor_id: int, motor_home_button: QPushButton, motor_home_all_button: QPushButton):
+    def __init__(self, motor_id: int):
         super().__init__()
         self._active_motor = controller.motors[motor_id]
-        self.motor_home_button = motor_home_button
-        self.motor_home_all_button = motor_home_all_button
 
     def run(self) -> None:
-        self.motor_home_button.setEnabled(False)
-        self.motor_home_all_button.setEnabled(False)
         self._active_motor.home()
-        self.motor_home_button.setEnabled(True)
-        self.motor_home_all_button.setEnabled(True)
         return
 
 
