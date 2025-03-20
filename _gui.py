@@ -4,7 +4,7 @@ import time
 from datetime import timedelta
 
 # GUI libraries
-from PySide6.QtGui import QPixmap, QKeyEvent
+from PySide6.QtGui import QPixmap, QKeyEvent, QDoubleValidator, QIntValidator
 from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QApplication,
@@ -18,11 +18,14 @@ from PySide6.QtWidgets import (
     QCheckBox, QFrame,
 )
 
-# TODO: Add function: Dynamic range calibration, graphing.
+
+# Plotting libraries:
+from matplotlib import pyplot as plt
 
 # Custom modules:
 import _backend
 import _real_time_graph
+
 
 print("Library import done.")
 
@@ -131,27 +134,71 @@ class Window(QMainWindow):
         _label_url.setOpenExternalLinks(True)
 
         # Line edits
+        double_validator = QDoubleValidator()  # Line edit will accept only Double types.
         self._m1_from_value = self._line_edit("0")
-        self._m1_to_value = self._line_edit("90")
-        self._m1_step_value = self._line_edit("30")
-        self._m1_move_to_value = self._line_edit("0")
+        self._m1_from_value.setValidator(double_validator)
+        self._m1_from_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m1_from_value, 1, 'scan_from'))
 
-        self._m2_from_value = self._line_edit("90")
-        self._m2_to_value = self._line_edit("180")
+        self._m1_to_value = self._line_edit("90")
+        self._m1_to_value.setValidator(double_validator)
+        self._m1_to_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m1_to_value, 1, 'scan_to'))
+
+        self._m1_step_value = self._line_edit("30")
+        self._m1_step_value.setValidator(double_validator)
+        self._m1_step_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m1_step_value, 1, 'scan_step'))
+
+        self._m1_move_to_value = self._line_edit("0")
+        self._m1_move_to_value.setValidator(double_validator)
+
+        self._m2_from_value = self._line_edit("0")
+        self._m2_from_value.setValidator(double_validator)
+        self._m2_from_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m2_from_value, 2, 'scan_from'))
+
+        self._m2_to_value = self._line_edit("90")
+        self._m2_to_value.setValidator(double_validator)
+        self._m2_to_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m2_to_value, 2, 'scan_to'))
+
         self._m2_step_value = self._line_edit("30")
+        self._m2_step_value.setValidator(double_validator)
+        self._m2_step_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m2_step_value, 2, 'scan_step'))
+
         self._m2_move_to_value = self._line_edit("0")
+        self._m2_move_to_value.setValidator(double_validator)
 
         self._m3_from_value = self._line_edit("0")
+        self._m3_from_value.setValidator(double_validator)
+        self._m3_from_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m3_from_value, 3, 'scan_from'))
+
         self._m3_to_value = self._line_edit("90")
+        self._m3_to_value.setValidator(double_validator)
+        self._m3_to_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m3_to_value, 3, 'scan_to'))
+
         self._m3_step_value = self._line_edit("30")
+        self._m3_step_value.setValidator(double_validator)
+        self._m3_step_value.editingFinished.connect(
+            lambda: self._collect_data_from_line_edit(self._m3_step_value, 3, 'scan_step'))
+
         self._m3_move_to_value = self._line_edit("0")
+        self._m3_move_to_value.setValidator(double_validator)
 
         self._calibration_m1_value = self._line_edit("80")
         self._calibration_m2_value = self._line_edit("90")
         self._calibration_m3_value = self._line_edit("80")
         self._calibration_m3_range_value = self._line_edit("10")
 
+        int_validator = QIntValidator()
         self._number_of_measurement_points_value = self._line_edit("500")
+        self._number_of_measurement_points_value.setValidator(int_validator)
+        self._number_of_measurement_points_value.editingFinished.connect(
+            lambda: controller.sensor.set_number_of_measurement_points(self._number_of_measurement_points_value.text()))
 
         # Buttons
         self._home1 = self._push_button("Motor 1 Home")
@@ -198,7 +245,9 @@ class Window(QMainWindow):
         self._measurement_3d.setChecked(True)
         self._measurement_3d.setEnabled(False)
         self._measurement_1d.clicked.connect(self._restrict_value_editing_for_1d_scan)
+        self._measurement_1d.clicked.connect(lambda: controller.set_scan_type('1D'))
         self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_scan)
+        self._measurement_3d.clicked.connect(lambda: controller.set_scan_type('3D'))
 
         # Logo
         logo = self._create_logo()  # Currently unused
@@ -417,10 +466,25 @@ class Window(QMainWindow):
             self.stop_motors()
 
     def toggle_scattering_graph_visibility(self):
+        controller.graph_3d()
         if self.sensor_real_time_graph.isVisible():
             self.sensor_real_time_graph.hide()
+            plt.close('all')
         else:
             self.sensor_real_time_graph.show()
+            plt.show()
+
+    @staticmethod
+    def _collect_data_from_line_edit(edited_line: QLineEdit, motor_id, parameter):
+        # This function is a bit wild, but it does what it is supposed to do while keeping the rest of the code simple.
+        value = float(edited_line.text())
+        affected_motor = controller.__getattribute__(f'motor_{motor_id}')
+        scan_from = value if parameter == 'scan_from' else None
+        scan_to = value if parameter == 'scan_to' else None
+        scan_step = value if parameter == 'scan_step' else None
+        edited_line.editingFinished.connect(affected_motor.set_measurement_parameters(
+            scan_from=scan_from, scan_to=scan_to, scan_step=scan_step))
+        edited_line.setText(str(affected_motor.__getattribute__(f'{parameter}')))
 
     #  -----------------------------------------------------------------------------------    Hardware control functions
     def start_background_tasks(self):
@@ -571,7 +635,7 @@ class ScanningThread(QThread):
         self.input_data = input_data
 
     def run(self) -> None:
-        controller.scanning(self.input_data, self.thread_signal)
+        controller.scanning(self.thread_signal)
         return
 
 

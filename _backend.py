@@ -3,6 +3,11 @@ import math
 import os
 import time
 
+import numpy as np
+# Plotting libraries
+from matplotlib import pyplot as plt
+from matplotlib import colormaps
+
 # Hardware libraries
 from msl.equipment import (EquipmentRecord, ConnectionRecord, Backend)
 from msl.equipment.resources.thorlabs import MotionControl
@@ -10,6 +15,7 @@ from msl.equipment.resources.thorlabs import MotionControl
 # Custom modules:
 from _scan import scan
 from _calibration import calibration
+import _sensor
 
 # Editable Parameters:
 global_polling_rate = 200
@@ -68,6 +74,10 @@ class MotorController:
         self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
         # List of available motors - motors are indexed from 1, so let 0 index be None, so the first motor is
         # on the index=1
+        self.sensor = _sensor.Sensor()
+
+        # Measurement parameters
+        self.scan_type = '3D'  # Or '2D'
 
     # This function is crashing the code if no device is plugged in via USB
     def connect(self):
@@ -121,11 +131,10 @@ class MotorController:
         print("Controller disconnected.")
 
     def calibrate(self, input_data):
-        # TODO: Implement calibrating function
-        calibration(self.motors, input_data)
+        calibration(self, input_data)
 
-    def scanning(self, input_data, thread_signal):
-        scan(self.motors, input_data, thread_signal)
+    def scanning(self, thread_signal):
+        scan(self, thread_signal)
 
     def stop_motors_and_disconnect(self):
         print("Stopping motors!")
@@ -133,8 +142,42 @@ class MotorController:
             if isinstance(motor, _Motor):
                 print(f"    Stopping motor: {motor.motor_id}")
                 motor.stop()
-        self.disconnect()  # TODO: Check if necessary
+        self.disconnect()  # TODO: Find a way to avoid this
         time.sleep(1)  # To ensure proper communication through USB
+
+    def graph_3d(self):
+        motor_2_from = 0
+        motor_2_to = 90
+        motor_2_step = 30
+
+        motor_3_from = 0
+        motor_3_to = 90
+        motor_3_step = 30
+
+        np.random.seed(19680801)
+
+        fig = plt.figure()
+        ax = fig.add_subplot(projection='3d')
+
+        plasma = colormaps['plasma'].resampled(180)
+        y_ticks = range(motor_2_from, motor_2_to, motor_2_step)
+        for k in y_ticks:
+            # Generate the random data for the y=k 'layer'.
+            x = list(range(motor_3_from, motor_3_to, motor_3_step))
+            y = np.random.rand(1, len(x))
+
+            ax.plot(x, y, zs=k, zdir='y', color=plasma(k/180), alpha=0.8)
+            ax.view_init(0, 90)
+
+        ax.set_xlabel('Motor 3 angle')
+        ax.set_ylabel('Motor 2 angle')
+        ax.set_zlabel('A0')
+
+        # On the y-axis let's only label the discrete values that we have data for.
+        ax.set_yticks(y_ticks)
+
+    def set_scan_type(self, scan_type: str):
+        self.scan_type = scan_type
 
 
 class _Motor:
@@ -166,6 +209,12 @@ class _Motor:
             self._set_backwards_homing()  # Always home anticlockwise
 
         self.current_position = 0
+
+        # Measurement parameters
+        self.scan_from = 0
+        self.scan_to = 90
+        self.scan_step = 30
+        self.scan_positions = self.find_range(self.scan_from, self.scan_to)
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
     def _while_moving_do(self, value: int):
@@ -345,38 +394,23 @@ class _Motor:
         elif new_position < previous_position:
             return 'BACKWARD'
 
+    def find_range(self, start, stop):
+        # TODO: Test all range options and fix illegal combinations (m3 from 270 to 90 etc...)
+        difference = stop - start
+        if difference >= 0:
+            dx = int((stop - start) / self.scan_step + 1)
+            scan_positions = np.linspace(start, stop, endpoint=True, num=dx)
+            return scan_positions
+        else:
+            first_half = self.find_range(start, 360)
+            second_half = self.find_range(0, stop)
+            scan_positions = np.concatenate((first_half, second_half), axis=0)
+            # 360 and 0 are the same angle... remove one of those.
+            scan_positions = np.delete(scan_positions, np.where(scan_positions == 0))
+            return scan_positions
+
     # --------------------------------------------------------------------------------------    Setting Motor Parameters
     #  All parameters can be set only after "load_settings()" has been called or gets overwritten
-    def set_limit_parameters(self, min_angle=0, max_angle=360):
-        # TODO: DONT UNDERSTAND, DOESNT WORK
-        min_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                               min_angle,
-                                                                               'DISTANCE')
-        max_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                               max_angle,
-                                                                               'DISTANCE')
-
-        self.parent_controller.set_limit_switch_params(self.motor_id, 2, 2, max_angle_d_u, min_angle_d_u, 2)
-
-    def set_limits_approach_policy(self, mode: int):
-        # TODO: DONT UNDERSTAND, DOESNT WORK
-        # DisallowIllegalMoves = 0
-        # AllowPartialMoves = 1
-        # AllowAllMoves = 2
-        # By default = 0
-        self.parent_controller.set_limits_software_approach_policy(self.motor_id, mode)
-
-    def set_rotation_limits(self, min_angle=0, max_angle=360):
-        # TODO: DONT UNDERSTAND, DOESNT WORK
-        # Angles in degrees
-        min_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                               min_angle,
-                                                                               'DISTANCE')
-        max_angle_d_u = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
-                                                                               max_angle,
-                                                                               'DISTANCE')
-        self.parent_controller.set_stage_axis_limits(self.motor_id, min_angle_d_u, max_angle_d_u)
-
     def set_rotation_mode(self, mode=2, direction=0):
         # mode: int ... 0,1,2
         #   0 ... linear mode !Do not use!
@@ -428,6 +462,24 @@ class _Motor:
                                                                                            "ACCELERATION")
 
         self.parent_controller.set_vel_params(self.motor_id, velocity_device_units, acceleration_device_units)
+
+    def set_measurement_parameters(self, scan_from=None, scan_to=None, scan_step=None):
+        # Check for illegal positions:
+        if scan_from is not None:
+            if self.check_for_illegal_position(scan_from):
+                print(f'Motor {self.motor_id}: "from" is outside of the legal space.')
+                return
+
+        if scan_to is not None:
+            if self.check_for_illegal_position(scan_to):
+                print(f'Motor {self.motor_id}: "to" is outside of the legal space.')
+                return
+
+        # If statements allow us to change only one at the time and keep the previous values for the rest.
+        self.scan_from = self.scan_from if scan_from is None else scan_from
+        self.scan_to = self.scan_to if scan_to is None else scan_to
+        self.scan_step = self.scan_step if scan_step is None else scan_step
+        self.scan_positions = self.find_range(self.scan_from, self.scan_to)
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
 
@@ -549,7 +601,7 @@ class _VirtualMotor(_Motor):
 
     def move_to_position(self, position):
         time.sleep(1)
-        print(self.get_travel_time(abs(position)-self.get_position()))
+        # print(self.get_travel_time(abs(position)-self.get_position()))
         self.current_position = position
         print(f"Motor {self.motor_id} moved to {position}.")
 

@@ -4,7 +4,9 @@ import pyqtgraph as pg
 import sys
 
 # Custom libraries
-from _sensor import measure_scattering
+import _backend
+
+controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
 
 
 class GraphWindow(QMainWindow):
@@ -32,7 +34,7 @@ class GraphWindow(QMainWindow):
             self.y = self.y[1:]  # Remove the first
 
         self.x.append(self.x[-1] + 0.5)  # Add a new value 1 higher than the last.
-        self.y.append(measure_scattering()[0])
+        self.y.append(controller.sensor.measure_scattering()[0])
         self.data_line.setData(self.x, self.y)  # Update the data.
 
 

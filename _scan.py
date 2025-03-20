@@ -6,27 +6,7 @@ from datetime import timedelta, datetime
 
 
 # Data manipulation libraries
-import numpy as np
 import pandas as pd
-
-# Custom libraries
-from _sensor import measure_scattering
-
-
-def _find_range(start, stop, step):
-    # TODO: Test all range options and fix illegal combinations (m3 from 270 to 90 etc...)
-    difference = stop - start
-    if difference >= 0:
-        dx = int((stop - start) / step + 1)
-        scan_range = np.linspace(start, stop, endpoint=True, num=dx)
-        return scan_range
-    else:
-        first_half = _find_range(start, 360, step)
-        second_half = _find_range(0, stop, step)
-        scan_range = np.concatenate((first_half, second_half), axis=0)
-        # 360 and 0 are the same angle... remove one of those.
-        scan_range = np.delete(scan_range, np.where(scan_range == 0))
-        return scan_range
 
 
 def _days_hours_minutes_seconds(dt):
@@ -77,14 +57,14 @@ def _update_progressbar(progress_count, start_time, full_range, thread_signal):
         thread_signal.emit(output_signal)
 
 
-def _collect_sensor_data(motor_1_position, motor_2_position, motor_3_position, number_of_measurement_points=1):
+def _collect_sensor_data(motor_1_position, motor_2_position, motor_3_position, sensor):
     n = 0
 
     column_names = ["a", "b", "c", "d", "e"]
     measurement_data = pd.DataFrame(columns=column_names)
 
-    while n < int(number_of_measurement_points):
-        sensor_data = measure_scattering()
+    while n < int(sensor.number_of_measurement_points):
+        sensor_data = sensor.measure_scattering()
         data = {
             "a": [motor_1_position],
             "b": [motor_2_position],
@@ -113,74 +93,32 @@ def _collect_sensor_data(motor_1_position, motor_2_position, motor_3_position, n
     return measurement_data, data_ratio
 
 
-def scan(motors, input_data, thread_signal):
+def scan(controller, thread_signal):
 
     progress_count = 0
 
     angles = [0, 0, 0]
 
-    # Decompose input data:
-    if input_data[10]:
-        scan_type = '1D'
-    else:
-        scan_type = '3D'
+    motor_1 = controller.motor_1
+    motor_2 = controller.motor_2
+    motor_3 = controller.motor_3
+    sensor = controller.sensor
 
-    motor_1 = motors[1]
-    motor_2 = motors[2]
-    motor_3 = motors[3]
+    full_range = (len(motor_1.scan_positions) * len(motor_2.scan_positions) * len(motor_3.scan_positions))
 
-    motor_1_from = float(input_data[0])
-    motor_1_to = float(input_data[1])
-    motor_1_step = float(input_data[2])
-    motor_1_range = _find_range(motor_1_from, motor_1_to, motor_1_step)
-
-    motor_2_from = float(input_data[3])
-    motor_2_to = float(input_data[4])
-    motor_2_step = float(input_data[5])
-    motor_2_range = _find_range(motor_2_from, motor_2_to, motor_2_step)
-
-    motor_3_from = float(input_data[6])
-    motor_3_to = float(input_data[7])
-    motor_3_step = float(input_data[8])
-    motor_3_range = _find_range(motor_3_from, motor_3_to, motor_3_step)
-
-    full_range = (len(motor_1_range) * len(motor_2_range) * len(motor_3_range))
-
-    number_of_measurement_points = input_data[9]
-
-    # Check for illegal positions:
-    if motor_1.check_for_illegal_position(motor_1_from):
-        print('Motor 1: "from" is outside of the legal space.')
-        return
-    elif motor_1.check_for_illegal_position(motor_1_to):
-        print('Motor 1: "to" is outside of the legal space.')
-        return
-    elif motor_2.check_for_illegal_position(motor_2_from):
-        print('Motor 2: "from" is outside of the legal space.')
-        return
-    elif motor_2.check_for_illegal_position(motor_2_to):
-        print('Motor 2: "to" is outside of the legal space.')
-        return
-    elif motor_3.check_for_illegal_position(motor_3_from):
-        print('Motor 3: "from" is outside of the legal space.')
-        return
-    elif motor_3.check_for_illegal_position(motor_3_to):
-        print('Motor 3: "to" is outside of the legal space.')
-        return
-
-    for i in motor_1_range:
+    for i in motor_1.scan_positions:
         if hasattr(motor_1, 'move_to_position'):
             motor_1.move_to_position(i)
 
         angles[0] = i
 
-        for j in motor_2_range:
+        for j in motor_2.scan_positions:
             if hasattr(motor_2, 'move_to_position'):
                 motor_2.move_to_position(j)
 
             angles[1] = j
 
-            for k in motor_3_range:
+            for k in motor_3.scan_positions:
                 scan_start_time = time.time()
                 if hasattr(motor_3, 'move_to_position'):
                     motor_3.move_to_position(k)
@@ -195,10 +133,10 @@ def scan(motors, input_data, thread_signal):
                     motor_1_position,
                     motor_2_position,
                     motor_3_position,
-                    number_of_measurement_points)
+                    sensor)
 
                 progress_count += 1
                 _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
-                _save_to_file(measurement_data, data_ratio, scan_type)
+                _save_to_file(measurement_data, data_ratio, controller.scan_type)
 
     print("Done")
