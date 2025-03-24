@@ -77,8 +77,8 @@ class Window(QMainWindow):
         self.setFixedSize(QSize(640, 600))
 
         # Measurement arguments:
-        self.graph_2d = _real_time_graph.Graph2D()
-        self.graph_3d = _real_time_graph.Graph3D()
+        self.graph_2d = _real_time_graphs.Graph2D()
+        self.graph_3d = _real_time_graphs.Graph3D()
         self._input_data = []
         self._scan_1d = False
         self._scan_3d = False
@@ -154,12 +154,12 @@ class Window(QMainWindow):
         self._m1_move_to_value = self._line_edit("0")
         self._m1_move_to_value.setValidator(double_validator)
 
-        self._m2_from_value = self._line_edit("0")
+        self._m2_from_value = self._line_edit("90")
         self._m2_from_value.setValidator(double_validator)
         self._m2_from_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m2_from_value, 2, 'scan_from'))
-
-        self._m2_to_value = self._line_edit("90")
+        # FIXME: motor parameters and line edit values do not match
+        self._m2_to_value = self._line_edit("180")
         self._m2_to_value.setValidator(double_validator)
         self._m2_to_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m2_to_value, 2, 'scan_to'))
@@ -469,7 +469,7 @@ class Window(QMainWindow):
     def toggle_scattering_graph_visibility(self):
         if self.graph_2d.isVisible():
             self.graph_2d.hide()
-            plt.close('all')
+
         else:
             self.graph_2d.show()
             self.graph_2d.reset_max_value()
@@ -570,9 +570,8 @@ class Window(QMainWindow):
         self._stop.setEnabled(True)
         self._view_scattering_graph.setEnabled(True)
 
-        self.graph_2d.timer.stop()
         worker.start()
-        worker.finished.connect(lambda: self.graph_2d.timer.start())
+
         worker.finished.connect(self._reset_layout)
 
     def stop_motors(self):

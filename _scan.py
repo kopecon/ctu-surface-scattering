@@ -135,6 +135,8 @@ def scan(controller, thread_signal):
                     motor_3_position,
                     sensor)
 
+                controller.measure_scattering_here()
+
                 progress_count += 1
                 _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
                 _save_to_file(measurement_data, data_ratio, controller.scan_type)

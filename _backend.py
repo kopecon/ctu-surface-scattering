@@ -76,6 +76,7 @@ class MotorController:
 
         # Measurement parameters
         self.scan_type = '3D'  # Or '2D'
+        self.measured_data = []
 
     # This function is crashing the code if no device is plugged in via USB
     def connect(self):
@@ -133,7 +134,8 @@ class MotorController:
     def measure_scattering_here(self):
         scattering_value = self.sensor.measure_scattering()
         motor_positions = (self.motor_1.current_position, self.motor_2.current_position, self.motor_3.current_position)
-        measurement_data = [motor_positions, scattering_value]
+        measurement_data = (motor_positions, scattering_value)
+        self.measured_data.append(measurement_data)
         return measurement_data
 
     def stop_motors_and_disconnect(self):
