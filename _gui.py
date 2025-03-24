@@ -55,6 +55,19 @@ Dependent Software:
 
 controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
 
+# Set initial values for motor positions predefined in the GUI
+controller.motor_1.scan_from = float(0)
+controller.motor_1.scan_to = float(90)
+controller.motor_1.scan_step = float(30)
+
+controller.motor_2.scan_from = float(90)
+controller.motor_2.scan_to = float(180)
+controller.motor_2.scan_step = float(30)
+
+controller.motor_3.scan_from = float(0)
+controller.motor_3.scan_to = float(90)
+controller.motor_3.scan_step = float(30)
+
 
 def days_hours_minutes_seconds(dt):
     days = dt.days
@@ -136,17 +149,17 @@ class Window(QMainWindow):
 
         # Line edits
         double_validator = QDoubleValidator()  # Line edit will accept only Double types.
-        self._m1_from_value = self._line_edit("0")
+        self._m1_from_value = self._line_edit(f"{controller.motor_1.scan_from}")
         self._m1_from_value.setValidator(double_validator)
         self._m1_from_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m1_from_value, 1, 'scan_from'))
 
-        self._m1_to_value = self._line_edit("90")
+        self._m1_to_value = self._line_edit(f"{controller.motor_1.scan_to}")
         self._m1_to_value.setValidator(double_validator)
         self._m1_to_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m1_to_value, 1, 'scan_to'))
 
-        self._m1_step_value = self._line_edit("30")
+        self._m1_step_value = self._line_edit(f"{controller.motor_1.scan_step}")
         self._m1_step_value.setValidator(double_validator)
         self._m1_step_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m1_step_value, 1, 'scan_step'))
@@ -154,17 +167,17 @@ class Window(QMainWindow):
         self._m1_move_to_value = self._line_edit("0")
         self._m1_move_to_value.setValidator(double_validator)
 
-        self._m2_from_value = self._line_edit("90")
+        self._m2_from_value = self._line_edit(f"{controller.motor_2.scan_from}")
         self._m2_from_value.setValidator(double_validator)
         self._m2_from_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m2_from_value, 2, 'scan_from'))
-        # FIXME: motor parameters and line edit values do not match
-        self._m2_to_value = self._line_edit("180")
+
+        self._m2_to_value = self._line_edit(f"{controller.motor_2.scan_to}")
         self._m2_to_value.setValidator(double_validator)
         self._m2_to_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m2_to_value, 2, 'scan_to'))
 
-        self._m2_step_value = self._line_edit("30")
+        self._m2_step_value = self._line_edit(f"{controller.motor_2.scan_step}")
         self._m2_step_value.setValidator(double_validator)
         self._m2_step_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m2_step_value, 2, 'scan_step'))
@@ -172,17 +185,17 @@ class Window(QMainWindow):
         self._m2_move_to_value = self._line_edit("0")
         self._m2_move_to_value.setValidator(double_validator)
 
-        self._m3_from_value = self._line_edit("0")
+        self._m3_from_value = self._line_edit(f"{controller.motor_3.scan_from}")
         self._m3_from_value.setValidator(double_validator)
         self._m3_from_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m3_from_value, 3, 'scan_from'))
 
-        self._m3_to_value = self._line_edit("90")
+        self._m3_to_value = self._line_edit(f"{controller.motor_3.scan_to}")
         self._m3_to_value.setValidator(double_validator)
         self._m3_to_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m3_to_value, 3, 'scan_to'))
 
-        self._m3_step_value = self._line_edit("30")
+        self._m3_step_value = self._line_edit(f"{controller.motor_3.scan_step}")
         self._m3_step_value.setValidator(double_validator)
         self._m3_step_value.editingFinished.connect(
             lambda: self._collect_data_from_line_edit(self._m3_step_value, 3, 'scan_step'))
