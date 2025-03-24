@@ -100,19 +100,21 @@ class Graph3D:
         _ = t  # t is not used. delete it.
         self.ax.set_xticks(controller.motor_3.scan_positions)
         self.ax.set_yticks(controller.motor_2.scan_positions)
-        plasma = colormaps['plasma'].resampled(180)
+        plasma = colormaps['plasma'].resampled(100)
         # Clear previous lines in graph
         for art in list(self.ax.lines):
             art.remove()
 
-        for position in controller.motor_2.scan_positions:
-            x = []
-            y = []
-            for data_entry in self.plot_data:
-                if position == data_entry[0][1]:
-                    x.append(data_entry[0][2])
-                    y.append(data_entry[1][0])
-            self.ax.plot(x, y, zs=position, zdir='y', color=plasma(position / 180), alpha=0.8)
+        for motor_1_position in controller.motor_1.scan_positions:
+            for motor_2_position in controller.motor_2.scan_positions:
+                x = []
+                y = []
+                for data_entry in self.plot_data:
+                    if data_entry[0][0] == motor_1_position and data_entry[0][1] == motor_2_position:
+                        x.append(data_entry[0][2])
+                        y.append(data_entry[1][0])
+                self.ax.plot(x, y, zs=motor_2_position, zdir='y',
+                             color=plasma(motor_2_position / 100 + motor_1_position/500), alpha=0.8)
 
         return []  # Return [] to prevent pycharm warnings but no other reason.
 
