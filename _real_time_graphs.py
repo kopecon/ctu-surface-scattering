@@ -1,5 +1,3 @@
-import random
-
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtCore import QTimer
 import pyqtgraph as pg
@@ -89,12 +87,6 @@ class Graph3D:
         self.ax.set_zlabel('A0')
 
         self.ani = matplotlib.animation.FuncAnimation(self.fig, self.update, frames=100)
-
-        self.lines = []
-        for position in controller.motor_2.scan_positions:
-            x = controller.motor_3.scan_positions
-            y = np.random.randint(69, size=len(x))
-            self.lines.append(self.ax.plot(x, y, zs=position, zdir='y', alpha=0.8))
 
     def update(self, t):
         _ = t  # t is not used. delete it.
