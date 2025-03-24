@@ -1,3 +1,5 @@
+import random
+
 from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtCore import QTimer
 import pyqtgraph as pg
@@ -5,6 +7,7 @@ import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import colormaps
+import matplotlib.animation
 
 # Custom libraries
 import _backend
@@ -70,17 +73,12 @@ class Graph3D:
     def __init__(self):
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(projection='3d')
+        self.plot_data = controller.measured_data
 
         motor_2_scan_positions = controller.motor_2.scan_positions
         motor_3_scan_positions = controller.motor_3.scan_positions
 
         np.random.seed(19680801)
-
-        plasma = colormaps['plasma'].resampled(180)
-        for position in motor_2_scan_positions:
-            x = motor_3_scan_positions
-            y = np.full(len(x), fill_value=0)
-            self.ax.plot(x, y, zs=position, zdir='y', color=plasma(position / 180), alpha=0.8)
 
         self.ax.view_init(0, 90)
 
@@ -89,10 +87,34 @@ class Graph3D:
         self.ax.set_ylabel('Motor 2 angle')
         self.ax.set_yticks(motor_2_scan_positions)
         self.ax.set_zlabel('A0')
-        self.update_3d_graph()
 
-    def update_3d_graph(self):
-        pass
+        self.ani = matplotlib.animation.FuncAnimation(self.fig, self.update, frames=100)
+
+        self.lines = []
+        for position in controller.motor_2.scan_positions:
+            x = controller.motor_3.scan_positions
+            y = np.random.randint(69, size=len(x))
+            self.lines.append(self.ax.plot(x, y, zs=position, zdir='y', alpha=0.8))
+
+    def update(self, t):
+        _ = t  # t is not used. delete it.
+        self.ax.set_xticks(controller.motor_3.scan_positions)
+        self.ax.set_yticks(controller.motor_2.scan_positions)
+        plasma = colormaps['plasma'].resampled(180)
+        # Clear previous lines in graph
+        for art in list(self.ax.lines):
+            art.remove()
+
+        for position in controller.motor_2.scan_positions:
+            x = []
+            y = []
+            for data_entry in self.plot_data:
+                if position == data_entry[0][1]:
+                    x.append(data_entry[0][2])
+                    y.append(data_entry[1][0])
+            self.ax.plot(x, y, zs=position, zdir='y', color=plasma(position / 180), alpha=0.8)
+
+        return []  # Return [] to prevent pycharm warnings but no other reason.
 
 
 if __name__ == '__main__':
