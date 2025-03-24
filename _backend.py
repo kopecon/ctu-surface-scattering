@@ -4,17 +4,14 @@ import os
 import time
 
 import numpy as np
-# Plotting libraries
-from matplotlib import pyplot as plt
-from matplotlib import colormaps
 
 # Hardware libraries
 from msl.equipment import (EquipmentRecord, ConnectionRecord, Backend)
 from msl.equipment.resources.thorlabs import MotionControl
 
 # Custom modules:
-from _scan import scan
-from _calibration import calibration
+import _scan
+import _calibration
 import _sensor
 
 # Editable Parameters:
@@ -68,9 +65,10 @@ class MotorController:
             connection=ConnectionRecord(address=self._address, backend=self._backend))
         self.active_controller = None  # The instance of BenchtopStepperMotor class. Needs to be initiated by connect().
         # There are 3 motors in our setup, so we add a variable for each motor. Motors get assigned by connect().
-        self.motor_1 = None
-        self.motor_2 = None
-        self.motor_3 = None
+        # Before connecting the motors are declared as _VirtualMotor() class.
+        self.motor_1 = _VirtualMotor(self, 1, motor_1_limits)
+        self.motor_2 = _VirtualMotor(self, 2, motor_2_limits)
+        self.motor_3 = _VirtualMotor(self, 3, motor_3_limits)
         self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
         # List of available motors - motors are indexed from 1, so let 0 index be None, so the first motor is
         # on the index=1
@@ -100,16 +98,12 @@ class MotorController:
             self.motor_2 = _Motor(self, 2, motor_2_limits)
             self.motor_3 = _Motor(self, 3, motor_3_limits)
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
-
             print("Connected to hardware successfully.")
 
             return 0
         except OSError:
             print("No devices found.")
-            # Connection to hardware was not successful, therefore declare motors as _VirtualMotor() class.
-            self.motor_1 = _VirtualMotor(self, 1, motor_1_limits)
-            self.motor_2 = _VirtualMotor(self, 2, motor_2_limits)
-            self.motor_3 = _VirtualMotor(self, 3, motor_3_limits)
+            # Connection to hardware was not successful, therefore motors stay as _VirtualMotor() class.
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
             print("Connected to virtual controller.")
             return 0  # TODO: Set to 1 after debugging!
@@ -131,10 +125,16 @@ class MotorController:
         print("Controller disconnected.")
 
     def calibrate(self, input_data):
-        calibration(self, input_data)
+        _calibration.calibration(self, input_data)
 
     def scanning(self, thread_signal):
-        scan(self, thread_signal)
+        _scan.scan(self, thread_signal)
+
+    def measure_scattering_here(self):
+        scattering_value = self.sensor.measure_scattering()
+        motor_positions = (self.motor_1.current_position, self.motor_2.current_position, self.motor_3.current_position)
+        measurement_data = [motor_positions, scattering_value]
+        return measurement_data
 
     def stop_motors_and_disconnect(self):
         print("Stopping motors!")
@@ -144,37 +144,6 @@ class MotorController:
                 motor.stop()
         self.disconnect()  # TODO: Find a way to avoid this
         time.sleep(1)  # To ensure proper communication through USB
-
-    def graph_3d(self):
-        motor_2_from = 0
-        motor_2_to = 90
-        motor_2_step = 30
-
-        motor_3_from = 0
-        motor_3_to = 90
-        motor_3_step = 30
-
-        np.random.seed(19680801)
-
-        fig = plt.figure()
-        ax = fig.add_subplot(projection='3d')
-
-        plasma = colormaps['plasma'].resampled(180)
-        y_ticks = range(motor_2_from, motor_2_to, motor_2_step)
-        for k in y_ticks:
-            # Generate the random data for the y=k 'layer'.
-            x = list(range(motor_3_from, motor_3_to, motor_3_step))
-            y = np.random.rand(1, len(x))
-
-            ax.plot(x, y, zs=k, zdir='y', color=plasma(k/180), alpha=0.8)
-            ax.view_init(0, 90)
-
-        ax.set_xlabel('Motor 3 angle')
-        ax.set_ylabel('Motor 2 angle')
-        ax.set_zlabel('A0')
-
-        # On the y-axis let's only label the discrete values that we have data for.
-        ax.set_yticks(y_ticks)
 
     def set_scan_type(self, scan_type: str):
         self.scan_type = scan_type

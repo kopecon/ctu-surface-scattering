@@ -19,9 +19,10 @@ def calibration(controller, input_data):
     motor_3_position = float(input_data[2])
     calibration_range = float(input_data[3])
     number_of_measurement_points = int(input_data[5])
-
+    controller.motor_3.scan_step /= 10  # Divide the step of motor 3 by 10
     calibration_steps = motor_3.find_range(
         motor_3_position-calibration_range, motor_3_position+calibration_range)
+    controller.motor_3.scan_step *= 10  # Return to the previous value
     motor_1.move_to_position(motor_1_position)
     motor_2.move_to_position(motor_2_position)
     motor_3.move_to_position(motor_3_position)

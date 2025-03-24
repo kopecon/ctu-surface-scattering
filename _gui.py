@@ -24,7 +24,7 @@ from matplotlib import pyplot as plt
 
 # Custom modules:
 import _backend
-import _real_time_graph
+import _real_time_graphs
 
 
 print("Library import done.")
@@ -77,7 +77,8 @@ class Window(QMainWindow):
         self.setFixedSize(QSize(640, 600))
 
         # Measurement arguments:
-        self.sensor_real_time_graph = _real_time_graph.GraphWindow()
+        self.graph_2d = _real_time_graph.Graph2D()
+        self.graph_3d = _real_time_graph.Graph3D()
         self._input_data = []
         self._scan_1d = False
         self._scan_3d = False
@@ -466,12 +467,12 @@ class Window(QMainWindow):
             self.stop_motors()
 
     def toggle_scattering_graph_visibility(self):
-        controller.graph_3d()
-        if self.sensor_real_time_graph.isVisible():
-            self.sensor_real_time_graph.hide()
+        if self.graph_2d.isVisible():
+            self.graph_2d.hide()
             plt.close('all')
         else:
-            self.sensor_real_time_graph.show()
+            self.graph_2d.show()
+            self.graph_2d.reset_max_value()
             plt.show()
 
     @staticmethod
@@ -496,9 +497,9 @@ class Window(QMainWindow):
     def start_calibration(self, input_data):
         worker = CalibratingThread(input_data)
         self.workers.append(worker)
-        self.sensor_real_time_graph.timer.stop()
+        # self.sensor_real_time_graph.timer.stop()
         worker.start()
-        worker.finished.connect(lambda: self.sensor_real_time_graph.timer.start())
+        worker.finished.connect(lambda: self.graph_2d.timer.start())
 
     def start_homing(self, motor_id):
         worker = HomingThread(motor_id)
@@ -569,9 +570,9 @@ class Window(QMainWindow):
         self._stop.setEnabled(True)
         self._view_scattering_graph.setEnabled(True)
 
-        self.sensor_real_time_graph.timer.stop()
+        self.graph_2d.timer.stop()
         worker.start()
-        worker.finished.connect(lambda: self.sensor_real_time_graph.timer.start())
+        worker.finished.connect(lambda: self.graph_2d.timer.start())
         worker.finished.connect(self._reset_layout)
 
     def stop_motors(self):

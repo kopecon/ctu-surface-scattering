@@ -13,9 +13,13 @@ class Sensor:
     def __init__(self):
         self.current_ad_0 = 0
         self.current_ad_1 = 0
-        self.ad_0_history = []
-        self.ad_1_history = []
+        self.history_length = 5
+        self.ad_0_history = [0.0]
+        self.ad_1_history = [0.0]
+        self.max_value_ad_0 = 0
+        self.max_value_ad_1 = 0
         self.number_of_measurement_points = 500
+        self.measure_scattering()  # Obtain initial values
 
     def measure_scattering(self):
         try:
@@ -34,13 +38,28 @@ class Sensor:
                 sensor_data = task.read()
                 self.current_ad_0 = float(sensor_data[0])
                 self.current_ad_1 = float(sensor_data[1])
+                # Save only last 50 values
+                if len(self.ad_0_history) > self.history_length:
+                    self.ad_0_history = self.ad_0_history[1:]
+                if len(self.ad_1_history) > self.history_length:
+                    self.ad_1_history = self.ad_1_history[1:]
                 self.ad_0_history.append(self.current_ad_0)
                 self.ad_1_history.append(self.current_ad_1)
                 return self.current_ad_0, self.current_ad_1
 
         except nidaqmx.errors.DaqNotFoundError:
             # print("Controller not found. Returning random data.")
-            return random.randint(42, 69), random.randint(69, 420)
+            self.current_ad_0 = random.randint(42, 69)
+            self.current_ad_1 = random.randint(69, 420)
+            if len(self.ad_0_history) > self.history_length:
+                self.ad_0_history = self.ad_0_history[1:]
+            if len(self.ad_1_history) > self.history_length:
+                self.ad_1_history = self.ad_1_history[1:]
+            self.ad_0_history.append(self.current_ad_0)
+            self.ad_1_history.append(self.current_ad_1)
+            if self.current_ad_0 > self.max_value_ad_0:
+                self.max_value_ad_0 = self.current_ad_0
+            return self.current_ad_0, self.current_ad_1
 
     def get_last_measurement(self):
         return self.ad_0_history[-1], self.ad_1_history[-1]
