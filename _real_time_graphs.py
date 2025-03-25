@@ -93,9 +93,7 @@ class Graph3D:
         self.ax.set_xticks(controller.motor_3.scan_positions)
         self.ax.set_yticks(controller.motor_2.scan_positions)
 
-        # Clear previous lines in the graph
-        for art in list(self.ax.lines):
-            art.remove()
+        self.clear_graph()
 
         for i, motor_1_position in enumerate(controller.motor_1.scan_positions):
             for j, motor_2_position in enumerate(controller.motor_2.scan_positions):
@@ -125,6 +123,10 @@ class Graph3D:
 
         # Set the colormap for the current measurement
         self.measurement_colormaps = sequential_colormaps
+
+    def clear_graph(self):
+        for art in list(self.ax.lines):
+            art.remove()
 
 
 if __name__ == '__main__':
