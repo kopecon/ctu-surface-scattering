@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QCheckBox, QFrame,
 )
 
+# FIXME: 1D Scan
+
 # Plotting libraries:
 from matplotlib import pyplot as plt
 
@@ -230,7 +232,6 @@ class Window(QMainWindow):
                                             self._number_of_measurement_points_value.text()
                                             ]))
         self._scan_button = self._push_button("Scan")
-        print(controller.motor_2.scan_positions)
         self._scan_button.clicked.connect(lambda: self.start_scanning())
         self._graph_button = self._push_button("Graph")
         self._stop_button = self._push_button("STOP")
@@ -443,7 +444,7 @@ class Window(QMainWindow):
 
     def _reset_layout(self):
         self._progress_bar.setValue(0)
-
+        self._time_to_finish_value_label.setText("0d 0h 0m 0s")
         self._enable_every_widget()
 
         self._measurement_1d.setChecked(False)
@@ -527,51 +528,13 @@ class Window(QMainWindow):
         worker.start()
 
     def start_scanning(self):
-        if self._measurement_1d.isChecked():
-            self._scan_1d = True
-            self._scan_3d = False
-            print("Scanning 1D...")
-        elif self._measurement_3d.isChecked():
-            self._scan_1d = False
-            self._scan_3d = True
-            print("Scanning 3D...")
-        # TODO: Clear unnecessary input data
-        if self._scan_3d:
-            self._input_data = [
-                self._m1_from_value.text(),
-                self._m1_to_value.text(),
-                self._m1_step_value.text(),
-                self._m2_from_value.text(),
-                self._m2_to_value.text(),
-                self._m2_step_value.text(),
-                self._m3_from_value.text(),
-                self._m3_to_value.text(),
-                self._m3_step_value.text(),
-                self._number_of_measurement_points_value.text(),
-                self._scan_1d]
-
-        elif self._scan_1d:
-            self._input_data = [
-                self._m1_from_value.text(),
-                self._m1_from_value.text(),
-                self._m1_step_value.text(),
-                self._m2_from_value.text(),
-                self._m2_from_value.text(),
-                self._m2_step_value.text(),
-                self._m3_from_value.text(),
-                self._m3_to_value.text(),
-                self._m3_step_value.text(),
-                self._number_of_measurement_points_value.text(),
-                self._scan_1d,
-                self._scan_3d]
-
-        print("Input Data: ", self._input_data)
-        worker = ScanningThread(self._input_data)
+        worker = ScanningThread()
         self.workers.append(worker)
         worker.thread_signal.connect(self._update_progress_bar)
 
         self._disable_every_widget(QPushButton)
         self._stop_button.setEnabled(True)
+        self.graph_3d.clear_graph()
         self._graph_button.setEnabled(True)
 
         worker.start()
@@ -634,9 +597,8 @@ class MovingThread(QThread):
 class ScanningThread(QThread):
     thread_signal = Signal(list)
 
-    def __init__(self, input_data):
+    def __init__(self):
         super().__init__()
-        self.input_data = input_data
 
     def run(self) -> None:
         controller.scanning(self.thread_signal)

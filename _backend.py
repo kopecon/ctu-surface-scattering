@@ -129,6 +129,7 @@ class MotorController:
         _calibration.calibration(self, input_data)
 
     def scanning(self, thread_signal):
+        self.measured_data.clear()  # Delete previous measurements
         _scan.scan(self, thread_signal)
 
     def measure_scattering_here(self):
@@ -144,8 +145,14 @@ class MotorController:
             if isinstance(motor, _Motor):
                 print(f"    Stopping motor: {motor.motor_id}")
                 motor.stop()
-        self.disconnect()  # TODO: Find a way to avoid this
+        # self.disconnect()  # TODO: Find a way to avoid this
         time.sleep(1)  # To ensure proper communication through USB
+
+    def unstop_motors(self):
+        # TODO: Find better name
+        self.motor_1.stopped = False
+        self.motor_2.stopped = False
+        self.motor_3.stopped = False
 
     def set_scan_type(self, scan_type: str):
         self.scan_type = scan_type
@@ -173,13 +180,13 @@ class _Motor:
         self.is_moving = False
         self.reached_left_limit = False
         self.reached_right_limit = False
+        self.current_position = 0
+        self.stopped = False
 
         # Motor 2 has different hardware limits than motor 1 and 3. Therefore, setup motor 2 separately:
         if self.motor_id == 2:
             self.set_rotation_mode(mode=1, direction=1)  # "Move to position" moves clockwise for positive values
             self._set_backwards_homing()  # Always home anticlockwise
-
-        self.current_position = 0
 
         # Measurement parameters
         self.scan_from = 0
@@ -455,6 +462,8 @@ class _Motor:
     # ----------------------------------------------------------------------------------------------    Moving Functions
 
     def home(self, velocity=10):
+        if self.stopped:
+            return 1
         quadrant = self.get_location_quadrant()
         # Set the proper direction of homing based on the motor position
         if self.motor_id != 2:
@@ -487,6 +496,8 @@ class _Motor:
         self.current_position = self.get_position()[0]
 
     def move_to_position(self, position):
+        if self.stopped:
+            return 1
         illegal_position = self.check_for_illegal_position(position)
         print(f"Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}")
         if not illegal_position:
@@ -526,6 +537,7 @@ class _Motor:
         # Based on documentation, stop_profiled is a controlled and safe way of stopping.
         # stop_immediate could lead to losing correct position reading, but probably would be faster.
         self.parent_controller.stop_profiled(self.motor_id)
+        self.stopped = True
         self.current_position = self.get_position()[0]
         print(f"        Motor {self.motor_id} stopped.")
 
@@ -571,6 +583,8 @@ class _VirtualMotor(_Motor):
         print(f"Motor {self.motor_id} homed.")
 
     def move_to_position(self, position):
+        if self.stopped:
+            return 1
         time.sleep(1)
         # print(self.get_travel_time(abs(position)-self.get_position()))
         self.current_position = position
@@ -578,6 +592,7 @@ class _VirtualMotor(_Motor):
 
     def stop(self):
         print(f"        Motor {self.motor_id} stopped.")
+        self.stopped = True
 
 
 # Define motor controller object based on the hardware in the lab:

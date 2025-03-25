@@ -107,28 +107,34 @@ def scan(controller, thread_signal):
     full_range = (len(motor_1.scan_positions) * len(motor_2.scan_positions) * len(motor_3.scan_positions))
 
     for i in motor_1.scan_positions:
-        if hasattr(motor_1, 'move_to_position'):
-            motor_1.move_to_position(i)
+        stop_check = motor_1.move_to_position(i)
+        if stop_check == 1:
+            # Motor was called to stop => end scanning
+            return controller.unstop_motors()
 
         angles[0] = i
 
         for j in motor_2.scan_positions:
-            if hasattr(motor_2, 'move_to_position'):
-                motor_2.move_to_position(j)
+            stop_check = motor_2.move_to_position(j)
+            if stop_check == 1:
+                # Motor was called to stop => end scanning
+                return controller.unstop_motors()
 
             angles[1] = j
 
             for k in motor_3.scan_positions:
                 scan_start_time = time.time()
-                if hasattr(motor_3, 'move_to_position'):
-                    motor_3.move_to_position(k)
-
+                stop_check = motor_3.move_to_position(k)
+                if stop_check == 1:
+                    # Motor was called to stop => end scanning
+                    return controller.unstop_motors()
                 angles[2] = k
 
                 motor_1_position = angles[0]
                 motor_2_position = angles[1]
                 motor_3_position = angles[2]
 
+                # TODO: clean measuring etc...
                 measurement_data, data_ratio = _collect_sensor_data(
                     motor_1_position,
                     motor_2_position,
