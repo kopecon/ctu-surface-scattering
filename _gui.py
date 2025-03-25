@@ -515,11 +515,11 @@ class Window(QMainWindow):
     def start_homing(self, motor_id):
         worker = HomingThread(motor_id)
         self.workers.append(worker)
-        self.__getattribute__(f'_home{motor_id}').setEnabled(False)  # Disable homing button for current motor
+        self.__getattribute__(f'_home{motor_id}_button').setEnabled(False)  # Disable homing button for current motor
         self._home_all_button.setEnabled(False)
         worker.start()
         # Enable homing button for the current motor once homing finished
-        worker.finished.connect(lambda: self.__getattribute__(f'_home{motor_id}').setEnabled(True))
+        worker.finished.connect(lambda: self.__getattribute__(f'_home{motor_id}_button').setEnabled(True))
         worker.finished.connect(lambda: self._home_all_button.setEnabled(True))
 
     def start_homing_all(self):
