@@ -47,7 +47,7 @@ class Graph2D(QMainWindow):
             self.ad0_values = self.ad0_values[1:]
             self.ad0_max_values = self.ad0_max_values[1:]
 
-        self.time.append(self.time[-1] + self.time_interval/100)  # Update time by the time interval
+        self.time.append(self.time[-1] + self.time_interval / 100)  # Update time by the time interval
         self.ad0_values.append(controller.sensor.get_last_measurement()[0])
         self.ad0_max_values.append(controller.sensor.max_value_ad_0)
         self.data_line.setData(self.time, self.ad0_values)  # Update the data.
@@ -73,42 +73,58 @@ class Graph3D:
         self.ax = self.fig.add_subplot(projection='3d')
         self.plot_data = controller.measured_data
 
-        motor_2_scan_positions = controller.motor_2.scan_positions
-        motor_3_scan_positions = controller.motor_3.scan_positions
+        self.measurement_colormaps = None
 
         np.random.seed(19680801)
 
         self.ax.view_init(0, 90)
 
         self.ax.set_xlabel('Motor 3 angle')
-        self.ax.set_xticks(motor_3_scan_positions)
+        self.ax.set_xticks(controller.motor_3.scan_positions)
         self.ax.set_ylabel('Motor 2 angle')
-        self.ax.set_yticks(motor_2_scan_positions)
+        self.ax.set_yticks(controller.motor_2.scan_positions)
         self.ax.set_zlabel('A0')
 
         self.ani = matplotlib.animation.FuncAnimation(self.fig, self.update, frames=100)
 
     def update(self, t):
         _ = t  # t is not used. Delete it.
+        self.prepare_color_scheme()
         self.ax.set_xticks(controller.motor_3.scan_positions)
         self.ax.set_yticks(controller.motor_2.scan_positions)
-        plasma = colormaps['plasma'].resampled(100)
-        # Clear previous lines in graph
+
+        # Clear previous lines in the graph
         for art in list(self.ax.lines):
             art.remove()
 
-        for motor_1_position in controller.motor_1.scan_positions:
-            for motor_2_position in controller.motor_2.scan_positions:
+        for i, motor_1_position in enumerate(controller.motor_1.scan_positions):
+            for j, motor_2_position in enumerate(controller.motor_2.scan_positions):
                 x = []
                 y = []
+                color_scale_factor = i/len(controller.motor_1.scan_positions)
+                color_scale_factor = 1 - color_scale_factor  # Turn the scaling from dark to light
                 for data_entry in self.plot_data:
                     if data_entry[0][0] == motor_1_position and data_entry[0][1] == motor_2_position:
                         x.append(data_entry[0][2])
                         y.append(data_entry[1][0])
                 self.ax.plot(x, y, zs=motor_2_position, zdir='y',
-                             color=plasma(motor_2_position / 100 + motor_1_position/500), alpha=0.8)
+                             color=self.measurement_colormaps[j](color_scale_factor), alpha=0.8)
 
         return []  # Return [] to prevent pycharm warnings but no other reason.
+
+    def prepare_color_scheme(self):
+        sequential_colormaps = ['Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds', 'YlOrBr', 'YlOrRd', 'OrRd',
+                                'PuRd', 'RdPu', 'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
+
+        # Change the string for the color object of matplotlib.colormaps and resample it based on motor_1 positions
+        for i, color in enumerate(sequential_colormaps):
+            sequential_colormaps[i] = colormaps[color].resampled(len(controller.motor_1.scan_positions))
+
+        # Take only the amount of colormaps needed so each motor 2 position has its own colormap
+        sequential_colormaps = sequential_colormaps[0:len(controller.motor_2.scan_positions)]
+
+        # Set the colormap for the current measurement
+        self.measurement_colormaps = sequential_colormaps
 
 
 if __name__ == '__main__':
