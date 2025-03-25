@@ -89,7 +89,7 @@ class Graph3D:
         self.ani = matplotlib.animation.FuncAnimation(self.fig, self.update, frames=100)
 
     def update(self, t):
-        _ = t  # t is not used. delete it.
+        _ = t  # t is not used. Delete it.
         self.ax.set_xticks(controller.motor_3.scan_positions)
         self.ax.set_yticks(controller.motor_2.scan_positions)
         plasma = colormaps['plasma'].resampled(100)

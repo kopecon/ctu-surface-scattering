@@ -18,14 +18,12 @@ from PySide6.QtWidgets import (
     QCheckBox, QFrame,
 )
 
-
 # Plotting libraries:
 from matplotlib import pyplot as plt
 
 # Custom modules:
 import _backend
 import _real_time_graphs
-
 
 print("Library import done.")
 
@@ -54,6 +52,7 @@ Dependent Software:
 """
 
 controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
+connection_check = controller.connect()  # Connects to the controller and returns 0 if connected hardware, 1 if virtual.
 
 # Set initial values for motor positions predefined in the GUI
 controller.motor_1.scan_from = float(0)
@@ -100,52 +99,52 @@ class Window(QMainWindow):
         self.workers = []
 
         # Labels
-        _label_controller_setup_title = self._label("Controller:")
-        _label_motor_setup_title = self._label("Motors:")
+        _controller_setup_title_label = self._label("Controller:")
+        _motor_setup_title_label = self._label("Motors:")
 
-        self._label_m1_from = self._label("From")  # Text is being changed => self.
-        _label_m1_to = self._label("To")
-        _label_m1_step = self._label("Step")
-        self._label_m1_position = self._label("Position")
-        _label_m1 = self._label("Motor 1")
-        _label_m1.setStyleSheet("qproperty-alignment: AlignRight;")
+        self._m1_from_label = self._label("From")  # Text is being changed => self.
+        _m1_to_label = self._label("To")
+        _m1_step_label = self._label("Step")
+        self._m1_position_label = self._label("Position")
+        _m1_label = self._label("Motor 1")
+        _m1_label.setStyleSheet("qproperty-alignment: AlignRight;")
 
-        self._label_m2_from = self._label("From")
-        _label_m2_to = self._label("To")
-        _label_m2_step = self._label("Step")
-        self._label_m2_position = self._label("Position")
-        _label_m2 = self._label("Motor 2")
-        _label_m2.setStyleSheet("qproperty-alignment: AlignRight;")
+        self._m2_from_label = self._label("From")
+        _m2_to_label = self._label("To")
+        _m2_step_label = self._label("Step")
+        self._m2_position_label = self._label("Position")
+        _m2_label = self._label("Motor 2")
+        _m2_label.setStyleSheet("qproperty-alignment: AlignRight;")
 
-        _label_m3_from = self._label("From")
-        _label_m3_to = self._label("To")
-        _label_m3_step = self._label("Step")
-        self._label_m3_position = self._label("Position")
-        _label_m3 = self._label("Motor 3")
-        _label_m3.setStyleSheet("qproperty-alignment: AlignRight;")
+        _m3_from_label = self._label("From")
+        _m3_to_label = self._label("To")
+        _m3_step_label = self._label("Step")
+        self._m3_position_label = self._label("Position")
+        _m3_label = self._label("Motor 3")
+        _m3_label.setStyleSheet("qproperty-alignment: AlignRight;")
 
-        _label_calibration_title = self._label("Calibration:")
-        _label_calibration_m1 = self._label("Motor 1")
-        _label_calibration_m2 = self._label("Motor 2")
-        _label_calibration_m3 = self._label("Motor 3")
-        _label_calibration_where = self._label("Where")
-        _label_calibration_m3_range = self._label("Range")
+        _calibration_title_label = self._label("Calibration:")
+        _calibration_m1_label = self._label("Motor 1")
+        _calibration_m2_label = self._label("Motor 2")
+        _calibration_m3_label = self._label("Motor 3")
+        _calibration_where_label = self._label("Where")
+        _calibration_m3_range_label = self._label("Range")
 
-        _label_measurement_setup_title = self._label("Measurement:")
+        _measurement_setup_title_label = self._label("Measurement:")
 
-        _label_measurement_num = self._label("Measurement points")
-        _label_measurement_n = self._label("[n]")
-        _label_scan_type = self._label("Scan type:")
+        _measurement_num_label = self._label("Measurement points")
+        _measurement_n_label = self._label("[n]")
+        _scan_type_label = self._label("Scan type:")
 
-        _label_home_title = self._label("Homing:")
+        _home_title_label = self._label("Homing:")
 
-        _label_time_to_finish_title = self._label("Time to Finish:")
-        self._label_time_to_finish_value = self._label("0d 0h 0m 0s")
+        _time_to_finish_title_label = self._label("Time to Finish:")
+        self._time_to_finish_value_label = self._label("0d 0h 0m 0s")
 
-        _label_url = self._label(
+        _url_label = self._label(
             f"<a href='https://www.numsolution.cz/'>https://www.numsolution.cz/</a>"
         )
-        _label_url.setOpenExternalLinks(True)
+        _url_label.setOpenExternalLinks(True)
 
         # Line edits
         double_validator = QDoubleValidator()  # Line edit will accept only Double types.
@@ -215,39 +214,40 @@ class Window(QMainWindow):
             lambda: controller.sensor.set_number_of_measurement_points(self._number_of_measurement_points_value.text()))
 
         # Buttons
-        self._home1 = self._push_button("Motor 1 Home")
-        self._home2 = self._push_button("Motor 2 Home")
-        self._home3 = self._push_button("Motor 3 Home")
-        self._home_all = self._push_button("Motor All")
-        self._move_1_to = self._push_button("Move")
-        self._move_2_to = self._push_button("Move")
-        self._move_3_to = self._push_button("Move")
-        self._calibrate = self._push_button("Calibrate")
-        self._scan = self._push_button("Scan")
-        self._view_scattering_graph = self._push_button("Graph")
-        self._stop = self._push_button("STOP")
-        self._stop.setFixedSize(80, 80)
-        self._stop.setStyleSheet("QPushButton {background-color: rgb(255, 26, 26); color: white;}")
-        self._connection_button = self._push_button("Connect")
-
-        self._home1.clicked.connect(lambda: self.start_homing(1))
-        self._home2.clicked.connect(lambda: self.start_homing(2))
-        self._home3.clicked.connect(lambda: self.start_homing(3))
-        self._home_all.clicked.connect(lambda: self.start_homing_all())
-        self._move_1_to.clicked.connect(lambda: self.move_to(1, float(self._m1_move_to_value.text())))
-        self._move_2_to.clicked.connect(lambda: self.move_to(2, float(self._m2_move_to_value.text())))
-        self._move_3_to.clicked.connect(lambda: self.move_to(3, float(self._m3_move_to_value.text())))
-        self._stop.clicked.connect(lambda: self.stop_motors())
-        self._calibrate.clicked.connect(lambda: self.start_calibration([self._calibration_m1_value.text(),
-                                                                        self._calibration_m2_value.text(),
-                                                                        self._calibration_m3_value.text(),
-                                                                        self._calibration_m3_range_value.text(),
-                                                                        self._m3_step_value.text(),
-                                                                        self._number_of_measurement_points_value.text()
-                                                                        ]))
-        self._scan.clicked.connect(lambda: self.start_scanning())
-        self._view_scattering_graph.clicked.connect(lambda: self.toggle_scattering_graph_visibility())
+        self._home1_button = self._push_button("Motor 1 Home")
+        self._home1_button.clicked.connect(lambda: self.start_homing(1))
+        self._home2_button = self._push_button("Motor 2 Home")
+        self._home2_button.clicked.connect(lambda: self.start_homing(2))
+        self._home3_button = self._push_button("Motor 3 Home")
+        self._home3_button.clicked.connect(lambda: self.start_homing(3))
+        self._home_all_button = self._push_button("Motor All")
+        self._home_all_button.clicked.connect(lambda: self.start_homing_all())
+        self._move_1_to_button = self._push_button("Move")
+        self._move_1_to_button.clicked.connect(lambda: self.move_to(1, float(self._m1_move_to_value.text())))
+        self._move_2_to_button = self._push_button("Move")
+        self._move_2_to_button.clicked.connect(lambda: self.move_to(2, float(self._m2_move_to_value.text())))
+        self._move_3_to_button = self._push_button("Move")
+        self._move_3_to_button.clicked.connect(lambda: self.move_to(3, float(self._m3_move_to_value.text())))
+        self._calibrate_button = self._push_button("Calibrate")
+        self._calibrate_button.clicked.connect(
+            lambda: self.start_calibration([self._calibration_m1_value.text(),
+                                            self._calibration_m2_value.text(),
+                                            self._calibration_m3_value.text(),
+                                            self._calibration_m3_range_value.text(),
+                                            self._m3_step_value.text(),
+                                            self._number_of_measurement_points_value.text()
+                                            ]))
+        self._scan_button = self._push_button("Scan")
+        self._scan_button.clicked.connect(lambda: self.start_scanning())
+        self._graph_button = self._push_button("Graph")
+        self._stop_button = self._push_button("STOP")
+        self._stop_button.setFixedSize(80, 80)
+        self._stop_button.setStyleSheet("QPushButton {background-color: rgb(255, 26, 26); color: white;}")
+        self._stop_button.clicked.connect(lambda: self.stop_motors())
+        self._connection_button = self._push_button("Disconnect")
         self._connection_button.clicked.connect(lambda: self.connect_or_disconnect_devices())
+
+        self._graph_button.clicked.connect(lambda: self.toggle_scattering_graph_visibility())
 
         # Progress bar
         self._progress_bar = self._progress_bar(0)
@@ -264,88 +264,86 @@ class Window(QMainWindow):
         self._measurement_3d.clicked.connect(lambda: controller.set_scan_type('3D'))
 
         # Logo
-        logo = self._create_logo()  # Currently unused
+        # logo = self._create_logo()  # Currently unused
 
         # Place and display created widgets
         self._layout.addWidget(self._connection_button, 0, 2, 1, 1)
-        self._layout.addWidget(_label_url, 0, 6, 1, 3)
-        self._layout.addWidget(_label_controller_setup_title, 0, 0, 1, 2)
+        self._layout.addWidget(_url_label, 0, 6, 1, 3)
+        self._layout.addWidget(_controller_setup_title_label, 0, 0, 1, 2)
         self._layout.addWidget(QHLine(), 1, 0, 1, self._layout.columnCount())
-        self._layout.addWidget(_label_motor_setup_title, 2, 0, 1, 1)
-        self._layout.addWidget(self._label_m1_from, 3, 2, 1, 1)
-        self._layout.addWidget(_label_m1_to, 3, 3, 1, 1)
-        self._layout.addWidget(_label_m1_step, 3, 4, 1, 1)
-        self._layout.addWidget(self._label_m1_position, 3, 6, 1, 1)
-        self._layout.addWidget(_label_m1, 4, 1, 1, 1)
+        self._layout.addWidget(_motor_setup_title_label, 2, 0, 1, 1)
+        self._layout.addWidget(self._m1_from_label, 3, 2, 1, 1)
+        self._layout.addWidget(_m1_to_label, 3, 3, 1, 1)
+        self._layout.addWidget(_m1_step_label, 3, 4, 1, 1)
+        self._layout.addWidget(self._m1_position_label, 3, 6, 1, 1)
+        self._layout.addWidget(_m1_label, 4, 1, 1, 1)
         self._layout.addWidget(self._m1_from_value, 4, 2, 1, 1)
         self._layout.addWidget(self._m1_to_value, 4, 3, 1, 1)
         self._layout.addWidget(self._m1_step_value, 4, 4, 1, 1)
         self._layout.addWidget(QVLine(), 4, 5, 1, 1)
         self._layout.addWidget(self._m1_move_to_value, 4, 6, 1, 1)
-        self._layout.addWidget(self._move_1_to, 4, 7, 1, 1)
-        self._layout.addWidget(self._label_m2_from, 5, 2, 1, 1)
-        self._layout.addWidget(_label_m2_to, 5, 3, 1, 1)
-        self._layout.addWidget(_label_m2_step, 5, 4, 1, 1)
-        self._layout.addWidget(self._label_m2_position, 5, 6, 1, 1)
-        self._layout.addWidget(_label_m2, 6, 1, 1, 1)
+        self._layout.addWidget(self._move_1_to_button, 4, 7, 1, 1)
+        self._layout.addWidget(self._m2_from_label, 5, 2, 1, 1)
+        self._layout.addWidget(_m2_to_label, 5, 3, 1, 1)
+        self._layout.addWidget(_m2_step_label, 5, 4, 1, 1)
+        self._layout.addWidget(self._m2_position_label, 5, 6, 1, 1)
+        self._layout.addWidget(_m2_label, 6, 1, 1, 1)
         self._layout.addWidget(self._m2_from_value, 6, 2, 1, 1)
         self._layout.addWidget(self._m2_to_value, 6, 3, 1, 1)
         self._layout.addWidget(self._m2_step_value, 6, 4, 1, 1)
         self._layout.addWidget(QVLine(), 6, 5, 1, 1)
         self._layout.addWidget(self._m2_move_to_value, 6, 6, 1, 1)
-        self._layout.addWidget(self._move_2_to, 6, 7, 1, 1)
-        self._layout.addWidget(_label_m3_from, 7, 2, 1, 1)
-        self._layout.addWidget(_label_m3_to, 7, 3, 1, 1)
-        self._layout.addWidget(_label_m3_step, 7, 4, 1, 1)
-        self._layout.addWidget(self._label_m3_position, 7, 6, 1, 1)
-        self._layout.addWidget(_label_m3, 8, 1, 1, 1)
+        self._layout.addWidget(self._move_2_to_button, 6, 7, 1, 1)
+        self._layout.addWidget(_m3_from_label, 7, 2, 1, 1)
+        self._layout.addWidget(_m3_to_label, 7, 3, 1, 1)
+        self._layout.addWidget(_m3_step_label, 7, 4, 1, 1)
+        self._layout.addWidget(self._m3_position_label, 7, 6, 1, 1)
+        self._layout.addWidget(_m3_label, 8, 1, 1, 1)
         self._layout.addWidget(self._m3_from_value, 8, 2, 1, 1)
         self._layout.addWidget(self._m3_to_value, 8, 3, 1, 1)
         self._layout.addWidget(self._m3_step_value, 8, 4, 1, 1)
         self._layout.addWidget(QVLine(), 8, 5, 1, 1)
         self._layout.addWidget(self._m3_move_to_value, 8, 6, 1, 1)
-        self._layout.addWidget(self._move_3_to, 8, 7, 1, 1)
+        self._layout.addWidget(self._move_3_to_button, 8, 7, 1, 1)
         self._layout.addWidget(QHLine(), 9, 0, 1, self._layout.columnCount())
-        self._layout.addWidget(_label_calibration_title, 10, 0, 1, 1)
-        self._layout.addWidget(_label_calibration_m1, 11, 2, 1, 1)
-        self._layout.addWidget(_label_calibration_m2, 11, 3, 1, 1)
-        self._layout.addWidget(_label_calibration_m3, 11, 4, 1, 1)
+        self._layout.addWidget(_calibration_title_label, 10, 0, 1, 1)
+        self._layout.addWidget(_calibration_m1_label, 11, 2, 1, 1)
+        self._layout.addWidget(_calibration_m2_label, 11, 3, 1, 1)
+        self._layout.addWidget(_calibration_m3_label, 11, 4, 1, 1)
         self._layout.addWidget(QVLine(), 12, 5, 1, 1)
-        self._layout.addWidget(_label_calibration_m3_range, 11, 6, 1, 1)
-        self._layout.addWidget(_label_calibration_where, 12, 1, 1, 1)
+        self._layout.addWidget(_calibration_m3_range_label, 11, 6, 1, 1)
+        self._layout.addWidget(_calibration_where_label, 12, 1, 1, 1)
         self._layout.addWidget(self._calibration_m1_value, 12, 2, 1, 1)
         self._layout.addWidget(self._calibration_m2_value, 12, 3, 1, 1)
         self._layout.addWidget(self._calibration_m3_value, 12, 4, 1, 1)
         self._layout.addWidget(self._calibration_m3_range_value, 12, 6, 1, 1)
-        self._layout.addWidget(self._calibrate, 12, 7, 1, 1)
+        self._layout.addWidget(self._calibrate_button, 12, 7, 1, 1)
         self._layout.addWidget(QHLine(), 14, 0, 1, self._layout.columnCount())
-        self._layout.addWidget(_label_measurement_setup_title, 15, 0, 1, 1)
-        self._layout.addWidget(_label_measurement_num, 16, 2, 1, 1)
+        self._layout.addWidget(_measurement_setup_title_label, 15, 0, 1, 1)
+        self._layout.addWidget(_measurement_num_label, 16, 2, 1, 1)
         self._layout.addWidget(self._number_of_measurement_points_value, 16, 3, 1, 1)
-        self._layout.addWidget(_label_measurement_n, 16, 4, 1, 1)
-        self._layout.addWidget(_label_scan_type, 17, 2, 1, 1)
+        self._layout.addWidget(_measurement_n_label, 16, 4, 1, 1)
+        self._layout.addWidget(_scan_type_label, 17, 2, 1, 1)
         self._layout.addWidget(self._measurement_1d, 17, 3, 1, 1)
         self._layout.addWidget(self._measurement_3d, 17, 4, 1, 1)
-        self._layout.addWidget(self._scan, 18, 2, 1, 3)
-        self._layout.addWidget(self._view_scattering_graph, 18, 6, 1, 2)
-        self._layout.addWidget(_label_time_to_finish_title, 19, 2, 1, 1)
-        self._layout.addWidget(self._label_time_to_finish_value, 19, 3, 1, 1)
+        self._layout.addWidget(self._scan_button, 18, 2, 1, 3)
+        self._layout.addWidget(self._graph_button, 18, 6, 1, 2)
+        self._layout.addWidget(_time_to_finish_title_label, 19, 2, 1, 1)
+        self._layout.addWidget(self._time_to_finish_value_label, 19, 3, 1, 1)
         self._layout.addWidget(self._progress_bar, 20, 2, 1, 3)
         self._layout.addWidget(QHLine(), 21, 0, 1, self._layout.columnCount())
-        self._layout.addWidget(_label_home_title, 22, 0, 1, 1)
-        self._layout.addWidget(self._stop, 22, 6, 4, 3, alignment=Qt.AlignmentFlag.AlignCenter)
-        self._layout.addWidget(self._home1, 23, 2, 1, 1)
-        self._layout.addWidget(self._home2, 23, 3, 1, 1)
-        self._layout.addWidget(self._home3, 23, 4, 1, 1)
-        self._layout.addWidget(self._home_all, 24, 3, 1, 1)
+        self._layout.addWidget(_home_title_label, 22, 0, 1, 1)
+        self._layout.addWidget(self._stop_button, 22, 6, 4, 3, alignment=Qt.AlignmentFlag.AlignCenter)
+        self._layout.addWidget(self._home1_button, 23, 2, 1, 1)
+        self._layout.addWidget(self._home2_button, 23, 3, 1, 1)
+        self._layout.addWidget(self._home3_button, 23, 4, 1, 1)
+        self._layout.addWidget(self._home_all_button, 24, 3, 1, 1)
 
         # Perform these tasks at the start of the program
-        self._set_disconnected_layout()
-        self.connect_or_disconnect_devices()
         self.start_background_tasks()
         # Disable movement until initial homing is done
         self._disable_every_widget(QPushButton)
-        self._home_all.setEnabled(True)
+        self._home_all_button.setEnabled(True)
 
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
@@ -407,13 +405,13 @@ class Window(QMainWindow):
                 widget.setEnabled(False)
 
     def update_motor_positions(self):
-        self._label_m1_position.setText(f"Position: {round(controller.motor_1.current_position,3)}")
-        self._label_m2_position.setText(f"Position: {round(controller.motor_2.current_position,3)}")
-        self._label_m3_position.setText(f"Position: {round(controller.motor_3.current_position,3)}")
+        self._m1_position_label.setText(f"Position: {round(controller.motor_1.current_position, 3)}")
+        self._m2_position_label.setText(f"Position: {round(controller.motor_2.current_position, 3)}")
+        self._m3_position_label.setText(f"Position: {round(controller.motor_3.current_position, 3)}")
 
     def _set_disconnected_layout(self):
         self._disable_every_widget(QPushButton)
-        self._stop.setEnabled(True)
+        self._stop_button.setEnabled(True)
         self._connection_button.setEnabled(True)
         self._connection_button.setText("Connect")
 
@@ -432,8 +430,8 @@ class Window(QMainWindow):
         self._m2_step_value.setEnabled(False)
         self._m3_from_value.setEnabled(True)
         self._m3_to_value.setEnabled(True)
-        self._label_m1_from.setText("Where")
-        self._label_m2_from.setText("Where")
+        self._m1_from_label.setText("Where")
+        self._m2_from_label.setText("Where")
         self._m3_from_value.setText('270')
         self._m3_to_value.setText('90')
 
@@ -445,8 +443,8 @@ class Window(QMainWindow):
         self._measurement_1d.setEnabled(True)
         self._measurement_1d.setChecked(False)
 
-        self._label_m1_from.setText("From")
-        self._label_m2_from.setText("From")
+        self._m1_from_label.setText("From")
+        self._m2_from_label.setText("From")
         self._m3_from_value.setText('0')
         self._m3_to_value.setText('90')
 
@@ -458,14 +456,14 @@ class Window(QMainWindow):
         self._measurement_1d.setChecked(False)
         self._measurement_3d.setChecked(True)
         self._measurement_3d.setEnabled(False)
-        self._label_m1_from.setText("From")
-        self._label_m2_from.setText("From")
+        self._m1_from_label.setText("From")
+        self._m2_from_label.setText("From")
 
     def _update_progress_bar_label(self, finish_time):
         delta = timedelta(seconds=finish_time)
         (days, hours, minutes, seconds) = days_hours_minutes_seconds(delta)
         n = (str(days) + "d " + str(hours) + "h " + str(minutes) + "m " + str(seconds) + "s")
-        self._label_time_to_finish_value.setText(n)
+        self._time_to_finish_value_label.setText(n)
 
     def _update_progress_bar(self, signal: list[int, float]):
         progress = signal[0]
@@ -518,11 +516,11 @@ class Window(QMainWindow):
         worker = HomingThread(motor_id)
         self.workers.append(worker)
         self.__getattribute__(f'_home{motor_id}').setEnabled(False)  # Disable homing button for current motor
-        self._home_all.setEnabled(False)
+        self._home_all_button.setEnabled(False)
         worker.start()
         # Enable homing button for the current motor once homing finished
         worker.finished.connect(lambda: self.__getattribute__(f'_home{motor_id}').setEnabled(True))
-        worker.finished.connect(lambda: self._home_all.setEnabled(True))
+        worker.finished.connect(lambda: self._home_all_button.setEnabled(True))
 
     def start_homing_all(self):
         self.start_homing(1)
@@ -544,7 +542,7 @@ class Window(QMainWindow):
             self._scan_1d = False
             self._scan_3d = True
             print("Scanning 3D...")
-
+        # TODO: Clear unnecessary input data
         if self._scan_3d:
             self._input_data = [
                 self._m1_from_value.text(),
@@ -580,8 +578,8 @@ class Window(QMainWindow):
         worker.thread_signal.connect(self._update_progress_bar)
 
         self._disable_every_widget(QPushButton)
-        self._stop.setEnabled(True)
-        self._view_scattering_graph.setEnabled(True)
+        self._stop_button.setEnabled(True)
+        self._graph_button.setEnabled(True)
 
         worker.start()
 
@@ -593,12 +591,12 @@ class Window(QMainWindow):
 
     def connect_or_disconnect_devices(self):
         if self._connection_button.text() == "Connect":
-            connection_check = controller.connect()  # Connects to the controller and returns 0 if connected correctly
-            if connection_check == 1:
+            _connection_check = controller.connect()  # Connects to the controller and returns 0 if connected correctly
+            if _connection_check == 1:
                 self._set_disconnected_layout()
                 # Not connected (Error)
                 return 1
-            elif connection_check == 0:
+            elif _connection_check == 0:
                 # Connected
                 self._set_connected_layout()
         elif self._connection_button.text() == "Disconnect":
@@ -660,7 +658,7 @@ class BackgroundTasksThread(QThread):
     def run(self) -> None:
         while self.active_window.isWindow():
             self.active_window.update_motor_positions()
-            time.sleep(0.5)  # To not overload the program
+            time.sleep(0.5)  # To not overload the program check for position only twice per second.
         return
 
 
