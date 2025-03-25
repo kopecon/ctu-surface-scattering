@@ -55,17 +55,9 @@ controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
 connection_check = controller.connect()  # Connects to the controller and returns 0 if connected hardware, 1 if virtual.
 
 # Set initial values for motor positions predefined in the GUI
-controller.motor_1.scan_from = float(0)
-controller.motor_1.scan_to = float(90)
-controller.motor_1.scan_step = float(30)
-
-controller.motor_2.scan_from = float(90)
-controller.motor_2.scan_to = float(180)
-controller.motor_2.scan_step = float(30)
-
-controller.motor_3.scan_from = float(0)
-controller.motor_3.scan_to = float(90)
-controller.motor_3.scan_step = float(30)
+controller.motor_1.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
+controller.motor_2.set_measurement_parameters(scan_from=float(90), scan_to=float(180), scan_step=float(30))
+controller.motor_3.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
 
 
 def days_hours_minutes_seconds(dt):
@@ -238,6 +230,7 @@ class Window(QMainWindow):
                                             self._number_of_measurement_points_value.text()
                                             ]))
         self._scan_button = self._push_button("Scan")
+        print(controller.motor_2.scan_positions)
         self._scan_button.clicked.connect(lambda: self.start_scanning())
         self._graph_button = self._push_button("Graph")
         self._stop_button = self._push_button("STOP")
