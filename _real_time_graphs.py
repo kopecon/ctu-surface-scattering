@@ -1,11 +1,14 @@
-from PySide6.QtWidgets import QApplication, QMainWindow
-from PySide6.QtCore import QTimer
+from PySide6.QtWidgets import QMainWindow, QWidget, QGridLayout
+from PySide6.QtCore import QTimer, QSize
 import pyqtgraph as pg
-import sys
 import numpy as np
-import matplotlib.pyplot as plt
 from matplotlib import colormaps
 import matplotlib.animation
+
+matplotlib.use('Qt5Agg')
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
+from matplotlib.figure import Figure
 
 # Custom libraries
 import _backend
@@ -13,12 +16,9 @@ import _backend
 controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
 
 
-class Graph2D(QMainWindow):
+class Graph2D:
     def __init__(self):
-        super().__init__()
         self.graphWidget = pg.PlotWidget()
-        self.setCentralWidget(self.graphWidget)
-
         self.time = [0.0]
         self.a0_values = [0.0]
         self.a0_max_values = [0.0]
@@ -31,8 +31,7 @@ class Graph2D(QMainWindow):
         pen_blue = pg.mkPen(color=(0, 0, 255))
         self.data_line = self.graphWidget.plot(self.time, self.a0_values, pen=pen)
         self.data_line_2 = self.graphWidget.plot(self.time, self.a0_max_values, pen=pen_blue)
-        self.max_a0_text = pg.TextItem(f"Max A0 = {self.a0_max_values}", anchor=(1, 1), color=(0, 0, 255))
-        self.max_a0_text.setPos(1, 1)
+        self.max_a0_text = pg.TextItem(f"Max A0 = {self.a0_max_values}", anchor=(1, 0), color=(0, 0, 255))
         self.graphWidget.addItem(self.max_a0_text)
         self.timer = QTimer()
         self.timer.setInterval(self.time_interval)
@@ -67,25 +66,33 @@ class Graph2D(QMainWindow):
         controller.sensor.max_value_a0 = self.a0_values[-1]
 
 
+class MplCanvas(FigureCanvasQTAgg):
+
+    def __init__(self, parent=None, width=10, height=7, dpi=100):
+        self.parent = parent
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111, projection='3d')
+        super().__init__(fig)
+
+
 class Graph3D:
     def __init__(self):
-        self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(projection='3d')
+        self.canvas = MplCanvas(self)
         self.plot_data = controller.measurement_data
 
         self.measurement_colormaps = None
 
         np.random.seed(19680801)
 
-        self.ax.view_init(0, 90)
+        self.canvas.axes.view_init(0, 90)
 
-        self.ax.set_xlabel('Motor 3 angle')
-        self.ax.set_xticks(controller.motor_3.scan_positions)
-        self.ax.set_ylabel('Motor 2 angle')
-        self.ax.set_yticks(controller.motor_2.scan_positions)
-        self.ax.set_zlabel('A0')
+        self.canvas.axes.set_xlabel('Motor 3 angle')
+        self.canvas.axes.set_xticks(controller.motor_3.scan_positions)
+        self.canvas.axes.set_ylabel('Motor 2 angle')
+        self.canvas.axes.set_yticks(controller.motor_2.scan_positions)
+        self.canvas.axes.set_zlabel('A0')
 
-        self.ani = matplotlib.animation.FuncAnimation(self.fig, self.update, frames=100)
+        self.ani = matplotlib.animation.FuncAnimation(self.canvas.figure, self.update, frames=100)
 
     def update(self, t):
         _ = t  # t is not used. Delete it.
@@ -96,15 +103,15 @@ class Graph3D:
             for j, motor_2_position in enumerate(controller.motor_2.scan_positions):
                 x = []
                 y = []
-                color_scale_factor = i/len(controller.motor_1.scan_positions)
+                color_scale_factor = i / len(controller.motor_1.scan_positions)
                 color_scale_factor = 1 - color_scale_factor  # Turn the scaling from dark to light
                 for data_entry in self.plot_data:
-                    if data_entry['motor_1_position'] == motor_1_position and\
+                    if data_entry['motor_1_position'] == motor_1_position and \
                             data_entry['motor_2_position'] == motor_2_position:
                         x.append(data_entry['motor_3_position'])
                         y.append(data_entry['a0'])
-                self.ax.plot(x, y, zs=motor_2_position, zdir='y',
-                             color=self.measurement_colormaps[j](color_scale_factor), alpha=0.8)
+                self.canvas.axes.plot(x, y, zs=motor_2_position, zdir='y',
+                                      color=self.measurement_colormaps[j](color_scale_factor), alpha=0.8)
 
         return []  # Return [] to prevent pycharm warnings but no other reason.
 
@@ -123,17 +130,30 @@ class Graph3D:
         self.measurement_colormaps = sequential_colormaps
 
     def clear_graph(self):
-        self.ax.set_xticks(controller.motor_3.scan_positions)
-        self.ax.set_yticks(controller.motor_2.scan_positions)
+        self.canvas.axes.set_xticks(controller.motor_3.scan_positions)
+        self.canvas.axes.set_yticks(controller.motor_2.scan_positions)
 
-        for art in list(self.ax.lines):
+        for art in list(self.canvas.axes.lines):
             art.remove()
 
         self.ani.resume()
 
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    main = Graph2D()
-    main.show()
-    app.exec()
+class GraphWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        # Window setup
+        _central_widget = QWidget()
+        self.setCentralWidget(_central_widget)
+        self._layout = QGridLayout()
+        _central_widget.setLayout(self._layout)
+
+        self.setWindowTitle("Graphs")
+        self.setFixedSize(QSize(640, 600))
+
+        self.graph_2d = Graph2D()
+        self.graph_3d = Graph3D()
+        self.toolbar = NavigationToolbar(self.graph_3d.canvas, self)
+        self._layout.addWidget(self.toolbar)
+        self._layout.addWidget(self.graph_2d.graphWidget, 2, 0)
+        self._layout.addWidget(self.graph_3d.canvas, 1, 0)

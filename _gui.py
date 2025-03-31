@@ -18,11 +18,6 @@ from PySide6.QtWidgets import (
     QCheckBox, QFrame,
 )
 
-# FIXME: 1D Scan
-
-# Plotting libraries:
-from matplotlib import pyplot as plt
-
 # Custom modules:
 import _backend
 import _real_time_graphs
@@ -83,8 +78,7 @@ class Window(QMainWindow):
         self.setFixedSize(QSize(640, 600))
 
         # Measurement arguments:
-        self.graph_2d = _real_time_graphs.Graph2D()
-        self.graph_3d = _real_time_graphs.Graph3D()
+        self.graph_window = _real_time_graphs.GraphWindow()
         self._input_data = []
         self._scan_1d = False
         self._scan_3d = False
@@ -472,13 +466,12 @@ class Window(QMainWindow):
             self.stop_motors()
 
     def toggle_scattering_graph_visibility(self):
-        if self.graph_2d.isVisible():
-            self.graph_2d.hide()
+        if self.graph_window.isVisible():
+            self.graph_window.hide()
 
         else:
-            self.graph_2d.show()
-            self.graph_2d.reset_max_value()
-            plt.show()
+            self.graph_window.show()
+            self.graph_window.graph_2d.reset_max_value()
 
     @staticmethod
     def _update_motor_parameters(edited_line: QLineEdit, motor_id, parameter):
@@ -523,9 +516,9 @@ class Window(QMainWindow):
 
         worker = CalibratingThread()
         self.workers.append(worker)
-        self.graph_3d.clear_graph()
+        self.graph_window.graph_3d.clear_graph()
         worker.start()
-        worker.finished.connect(self.graph_3d.ani.pause)
+        worker.finished.connect(self.graph_window.graph_3d.ani.pause)
         worker.finished.connect(self._update_all_motor_parameters)
 
     def start_homing(self, motor_id):
@@ -556,13 +549,13 @@ class Window(QMainWindow):
 
         self._disable_every_widget(QPushButton)
         self._stop_button.setEnabled(True)
-        self.graph_3d.clear_graph()
+        self.graph_window.graph_3d.clear_graph()
         self._graph_button.setEnabled(True)
 
         worker.start()
 
         worker.finished.connect(self._reset_layout)
-        worker.finished.connect(self.graph_3d.ani.pause)
+        worker.finished.connect(self.graph_window.graph_3d.ani.pause)
 
     def stop_motors(self):
         controller.stop_motors_and_disconnect()
