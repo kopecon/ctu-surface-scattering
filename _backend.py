@@ -2,22 +2,34 @@
 import math
 import os
 import time
+import random
+import warnings
 
+# Math libraries:
 import numpy as np
+import pandas as pd
 
 # Hardware libraries
+#   Motors:
 from msl.equipment import (EquipmentRecord, ConnectionRecord, Backend)
 from msl.equipment.resources.thorlabs import MotionControl
+#   Sensor:
+import nidaqmx
+from nidaqmx.constants import Edge, AcquisitionType
+
+# NI-DAQmx 2025 Q1 has to be installed on the executing pc to run the scan.
+# NI-DAQmx 2025 Q1 download:
+# https://www.ni.com/en/support/downloads/drivers/download.ni-daq-mx.html?srsltid=AfmBOooJ-Ko5HpJHEr4yPzQEZKufBWdBc1JjWh
+# omtdJ27QKXivgjvTBr#559060
 
 # Custom modules:
 import _scan
 import _calibration
-import _sensor
 
 # Editable Parameters:
 global_polling_rate = 200
 motor_1_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 1 in [deg].
-motor_2_limits = (0, 270)   # (Counter-Clockwise, Clockwise) limits of the motor 2 in [deg].
+motor_2_limits = (0, 270)  # (Counter-Clockwise, Clockwise) limits of the motor 2 in [deg].
 motor_3_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 3 in [deg].
 
 limit_margin = 2  # How far [deg] beyond limit can device legally move without stopping.
@@ -72,11 +84,11 @@ class MotorController:
         self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
         # List of available motors - motors are indexed from 1, so let 0 index be None, so the first motor is
         # on the index=1
-        self.sensor = _sensor.Sensor()
+        self.sensor = Sensor()
 
         # Measurement parameters
         self.scan_type = '3D'  # Or '2D'
-        self.measured_data = []
+        self.measurement_data = []
 
     # This function is crashing the code if no device is plugged in via USB
     def connect(self):
@@ -107,7 +119,7 @@ class MotorController:
             # Connection to hardware was not successful, therefore motors stay as _VirtualMotor() class.
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
             print("Connected to virtual controller.")
-            return 0  # TODO: Set to 1 after debugging!
+            return 1
 
     def disconnect(self):
         """
@@ -126,18 +138,72 @@ class MotorController:
         print("Controller disconnected.")
 
     def calibrate(self, input_data):
-        _calibration.calibration(self, input_data)
+        self.measurement_data.clear()
+        # TODO: Find better solution
+        motor_3_from = float(input_data[2]) - float(input_data[3])
+        motor_3_to = float(input_data[2]) + float(input_data[3])
+        self.motor_1.set_measurement_parameters(scan_from=float(input_data[0]), scan_to=float(input_data[0]))
+        self.motor_2.set_measurement_parameters(scan_from=float(input_data[1]), scan_to=float(input_data[1]))
+        self.motor_3.scan_step /= 10  # Divide the step of motor 3 by 10
+        self.motor_3.set_measurement_parameters(scan_from=motor_3_from, scan_to=motor_3_to)
+        _calibration.calibration(self)
+        '''self.motor_1.set_measurement_parameters(scan_from=float(0), scan_to=float(90))
+        self.motor_2.set_measurement_parameters(scan_from=float(90), scan_to=float(180))
+        self.motor_3.scan_step *= 10  # Return to the previous value
+        self.motor_3.set_measurement_parameters(scan_from=float(0), scan_to=float(90))'''
 
     def scanning(self, thread_signal):
-        self.measured_data.clear()  # Delete previous measurements
+        self.measurement_data.clear()
+
+        # TODO: Find better solution
+        if self.scan_type == '1D':
+            self.motor_1.scan_positions = [self.motor_1.scan_from]
+            self.motor_2.scan_positions = [self.motor_2.scan_from]
+
         _scan.scan(self, thread_signal)
 
-    def measure_scattering_here(self):
-        scattering_value = self.sensor.measure_scattering()
-        motor_positions = (self.motor_1.current_position, self.motor_2.current_position, self.motor_3.current_position)
-        measurement_data = (motor_positions, scattering_value)
-        self.measured_data.append(measurement_data)
-        return measurement_data
+    def collect_sensor_data(self):
+        n = 0
+
+        column_names = ["motor_1_position", "motor_2_position", "motor_3_position", "a0", "a1", "data_ratio"]
+        scan_data_cluster = pd.DataFrame(columns=column_names)
+
+        while n < self.sensor.number_of_measurement_points:
+            sensor_data = self.sensor.measure_scattering()
+            data_n = {
+                "motor_1_position": self.motor_1.current_position,
+                "motor_2_position": self.motor_2.current_position,
+                "motor_3_position": self.motor_3.current_position,
+                "a0": [sensor_data[0]],
+                "a1": [sensor_data[1]],
+                "data_ratio": [sensor_data[2]]}
+            current_scan = pd.DataFrame(data_n)  # Get data from n-th scan
+            scan_data_cluster = pd.concat((scan_data_cluster, current_scan), axis=0)  # Append current scan to previous
+
+            # To prevent pandas FutureWarning spam:
+            warnings.simplefilter(action='ignore', category=FutureWarning)
+
+            n += 1
+
+        # Now, each column has n number of values => get average value for every column
+        scan_output = scan_data_cluster.mean()
+
+        scan_output['data_ratio'] = round(scan_output['data_ratio'], 3)
+        ''' Example of scan output:
+        motor_1_position       0.0
+        motor_2_position      90.0
+        motor_3_position      60.0
+        a0                55.614
+        a1                249.95
+        data_ratio           0.277
+        '''
+
+        self.measurement_data.append({'motor_1_position': self.motor_1.current_position,
+                                      'motor_2_position': self.motor_2.current_position,
+                                      'motor_3_position': self.motor_3.current_position,
+                                      'a0': scan_output.iloc[3],
+                                      'a1': scan_output.iloc[4]})
+        return scan_output
 
     def stop_motors_and_disconnect(self):
         print("Stopping motors!")
@@ -145,7 +211,7 @@ class MotorController:
             if isinstance(motor, _Motor):
                 print(f"    Stopping motor: {motor.motor_id}")
                 motor.stop()
-        # self.disconnect()  # TODO: Find a way to avoid this
+        # self.disconnect()
         time.sleep(1)  # To ensure proper communication through USB
 
     def unstop_motors(self):
@@ -293,7 +359,7 @@ class _Motor:
         while current_velocity >= 0:
             # Deceleration
             traveled_distance = traveled_distance + current_velocity * dt
-            current_velocity = current_velocity - 2*acceleration * dt
+            current_velocity = current_velocity - 2 * acceleration * dt
 
         return travel_time, traveled_distance
 
@@ -593,6 +659,67 @@ class _VirtualMotor(_Motor):
     def stop(self):
         print(f"        Motor {self.motor_id} stopped.")
         self.stopped = True
+
+
+class Sensor:
+    def __init__(self):
+        self.current_a0 = 0
+        self.current_a1 = 0
+        self.history_length = 5
+        self.a0_history = [0.0]
+        self.a1_history = [0.0]
+        self.max_value_a0 = 0
+        self.max_value_a1 = 0
+        self.number_of_measurement_points = 500
+        self.measure_scattering()  # Obtain initial values
+
+    def measure_scattering(self):
+        try:
+            with nidaqmx.Task() as task:
+                task.ai_channels.add_ai_voltage_chan(
+                    "myDAQ1/ai0:1"
+                )
+                task.timing.cfg_samp_clk_timing(
+                    100000,
+                    source="",
+                    active_edge=Edge.RISING,
+                    sample_mode=AcquisitionType.FINITE,
+                    samps_per_chan=10,
+                )
+
+                sensor_data = task.read()
+                self.current_a0 = float(sensor_data[0])
+                self.current_a1 = float(sensor_data[1])
+                # Save only last 50 values
+                if len(self.a0_history) > self.history_length:
+                    self.a0_history = self.a0_history[1:]
+                if len(self.a1_history) > self.history_length:
+                    self.a1_history = self.a0_history[1:]
+                self.a0_history.append(self.current_a0)
+                self.a1_history.append(self.current_a1)
+                data_ratio = self.current_a0 / self.current_a1
+                return self.current_a0, self.current_a1, data_ratio
+
+        except nidaqmx.errors.DaqNotFoundError:
+            # print("Controller not found. Returning random data.")
+            self.current_a0 = random.randint(42, 69)
+            self.current_a1 = random.randint(69, 420)
+            if len(self.a0_history) > self.history_length:
+                self.a0_history = self.a0_history[1:]
+            if len(self.a1_history) > self.history_length:
+                self.a1_history = self.a0_history[1:]
+            self.a0_history.append(self.current_a0)
+            self.a1_history.append(self.current_a1)
+            if self.current_a0 > self.max_value_a0:
+                self.max_value_a0 = self.current_a0
+            data_ratio = self.current_a0 / self.current_a1
+            return self.current_a0, self.current_a1, data_ratio
+
+    def get_last_measurement(self):
+        return self.a0_history[-1], self.a1_history[-1]
+
+    def set_number_of_measurement_points(self, value):
+        self.number_of_measurement_points = int(value)
 
 
 # Define motor controller object based on the hardware in the lab:
