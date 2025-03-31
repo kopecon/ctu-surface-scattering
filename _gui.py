@@ -145,17 +145,17 @@ class Window(QMainWindow):
         self._m1_from_value = self._line_edit(f"{controller.motor_1.scan_from}")
         self._m1_from_value.setValidator(double_validator)
         self._m1_from_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m1_from_value, 1, 'scan_from'))
+            lambda: self._update_motor_parameters(self._m1_from_value, 1, 'scan_from'))
 
         self._m1_to_value = self._line_edit(f"{controller.motor_1.scan_to}")
         self._m1_to_value.setValidator(double_validator)
         self._m1_to_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m1_to_value, 1, 'scan_to'))
+            lambda: self._update_motor_parameters(self._m1_to_value, 1, 'scan_to'))
 
         self._m1_step_value = self._line_edit(f"{controller.motor_1.scan_step}")
         self._m1_step_value.setValidator(double_validator)
         self._m1_step_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m1_step_value, 1, 'scan_step'))
+            lambda: self._update_motor_parameters(self._m1_step_value, 1, 'scan_step'))
 
         self._m1_move_to_value = self._line_edit("0")
         self._m1_move_to_value.setValidator(double_validator)
@@ -163,17 +163,17 @@ class Window(QMainWindow):
         self._m2_from_value = self._line_edit(f"{controller.motor_2.scan_from}")
         self._m2_from_value.setValidator(double_validator)
         self._m2_from_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m2_from_value, 2, 'scan_from'))
+            lambda: self._update_motor_parameters(self._m2_from_value, 2, 'scan_from'))
 
         self._m2_to_value = self._line_edit(f"{controller.motor_2.scan_to}")
         self._m2_to_value.setValidator(double_validator)
         self._m2_to_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m2_to_value, 2, 'scan_to'))
+            lambda: self._update_motor_parameters(self._m2_to_value, 2, 'scan_to'))
 
         self._m2_step_value = self._line_edit(f"{controller.motor_2.scan_step}")
         self._m2_step_value.setValidator(double_validator)
         self._m2_step_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m2_step_value, 2, 'scan_step'))
+            lambda: self._update_motor_parameters(self._m2_step_value, 2, 'scan_step'))
 
         self._m2_move_to_value = self._line_edit("0")
         self._m2_move_to_value.setValidator(double_validator)
@@ -181,17 +181,17 @@ class Window(QMainWindow):
         self._m3_from_value = self._line_edit(f"{controller.motor_3.scan_from}")
         self._m3_from_value.setValidator(double_validator)
         self._m3_from_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m3_from_value, 3, 'scan_from'))
+            lambda: self._update_motor_parameters(self._m3_from_value, 3, 'scan_from'))
 
         self._m3_to_value = self._line_edit(f"{controller.motor_3.scan_to}")
         self._m3_to_value.setValidator(double_validator)
         self._m3_to_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m3_to_value, 3, 'scan_to'))
+            lambda: self._update_motor_parameters(self._m3_to_value, 3, 'scan_to'))
 
         self._m3_step_value = self._line_edit(f"{controller.motor_3.scan_step}")
         self._m3_step_value.setValidator(double_validator)
         self._m3_step_value.editingFinished.connect(
-            lambda: self._collect_data_from_line_edit(self._m3_step_value, 3, 'scan_step'))
+            lambda: self._update_motor_parameters(self._m3_step_value, 3, 'scan_step'))
 
         self._m3_move_to_value = self._line_edit("0")
         self._m3_move_to_value.setValidator(double_validator)
@@ -214,7 +214,7 @@ class Window(QMainWindow):
         self._home2_button.clicked.connect(lambda: self.start_homing(2))
         self._home3_button = self._push_button("Motor 3 Home")
         self._home3_button.clicked.connect(lambda: self.start_homing(3))
-        self._home_all_button = self._push_button("Motor All")
+        self._home_all_button = self._push_button("Home All")
         self._home_all_button.clicked.connect(lambda: self.start_homing_all())
         self._move_1_to_button = self._push_button("Move")
         self._move_1_to_button.clicked.connect(lambda: self.move_to(1, float(self._m1_move_to_value.text())))
@@ -223,14 +223,7 @@ class Window(QMainWindow):
         self._move_3_to_button = self._push_button("Move")
         self._move_3_to_button.clicked.connect(lambda: self.move_to(3, float(self._m3_move_to_value.text())))
         self._calibrate_button = self._push_button("Calibrate")
-        self._calibrate_button.clicked.connect(
-            lambda: self.start_calibration([self._calibration_m1_value.text(),
-                                            self._calibration_m2_value.text(),
-                                            self._calibration_m3_value.text(),
-                                            self._calibration_m3_range_value.text(),
-                                            self._m3_step_value.text(),
-                                            self._number_of_measurement_points_value.text()
-                                            ]))
+        self._calibrate_button.clicked.connect(lambda: self.start_calibration())
         self._scan_button = self._push_button("Scan")
         self._scan_button.clicked.connect(lambda: self.start_scanning())
         self._graph_button = self._push_button("Graph")
@@ -399,6 +392,7 @@ class Window(QMainWindow):
                 widget.setEnabled(False)
 
     def update_motor_positions(self):
+        # This is called periodically in background task to update motor positions in GUI in real time
         self._m1_position_label.setText(f"Position: {round(controller.motor_1.current_position, 3)}")
         self._m2_position_label.setText(f"Position: {round(controller.motor_2.current_position, 3)}")
         self._m3_position_label.setText(f"Position: {round(controller.motor_3.current_position, 3)}")
@@ -429,6 +423,9 @@ class Window(QMainWindow):
         self._m3_from_value.setText('270')
         self._m3_to_value.setText('90')
 
+        # Update the motor parameters to match the values in the lines
+        self._update_all_motor_parameters()
+
     def _restrict_value_editing_for_3d_scan(self):
         # First enable everything
         self._enable_every_widget(QLineEdit)
@@ -441,6 +438,9 @@ class Window(QMainWindow):
         self._m2_from_label.setText("From")
         self._m3_from_value.setText('0')
         self._m3_to_value.setText('90')
+
+        # Update the motor parameters to match the values in the lines
+        self._update_all_motor_parameters()
 
     def _reset_layout(self):
         self._progress_bar.setValue(0)
@@ -481,7 +481,7 @@ class Window(QMainWindow):
             plt.show()
 
     @staticmethod
-    def _collect_data_from_line_edit(edited_line: QLineEdit, motor_id, parameter):
+    def _update_motor_parameters(edited_line: QLineEdit, motor_id, parameter):
         # This function is a bit wild, but it does what it is supposed to do while keeping the rest of the code simple.
         value = float(edited_line.text())
         affected_motor = controller.__getattribute__(f'motor_{motor_id}')
@@ -492,6 +492,19 @@ class Window(QMainWindow):
             scan_from=scan_from, scan_to=scan_to, scan_step=scan_step))
         edited_line.setText(str(affected_motor.__getattribute__(f'{parameter}')))
 
+    def _update_all_motor_parameters(self):
+        self._update_motor_parameters(self._m1_from_value, 1, "scan_from")
+        self._update_motor_parameters(self._m1_to_value, 1, "scan_to")
+        self._update_motor_parameters(self._m1_step_value, 1, "scan_step")
+
+        self._update_motor_parameters(self._m2_from_value, 2, "scan_from")
+        self._update_motor_parameters(self._m2_to_value, 2, "scan_to")
+        self._update_motor_parameters(self._m2_step_value, 2, "scan_step")
+
+        self._update_motor_parameters(self._m3_from_value, 3, "scan_from")
+        self._update_motor_parameters(self._m3_to_value, 3, "scan_to")
+        self._update_motor_parameters(self._m3_step_value, 3, "scan_step")
+
     #  -----------------------------------------------------------------------------------    Hardware control functions
     def start_background_tasks(self):
         worker = BackgroundTasksThread(self)
@@ -499,12 +512,21 @@ class Window(QMainWindow):
 
         worker.start()
 
-    def start_calibration(self, input_data):
-        worker = CalibratingThread(input_data)
+    def start_calibration(self):
+        controller.motor_1.set_measurement_parameters(scan_from=float(self._calibration_m1_value.text()))
+        controller.motor_2.set_measurement_parameters(scan_from=float(self._calibration_m2_value.text()))
+        motor_3_from = float(self._calibration_m3_value.text())-float(self._calibration_m3_range_value.text())
+        motor_3_to = float(self._calibration_m3_value.text())+float(self._calibration_m3_range_value.text())
+        motor_3_step = float(self._m3_step_value.text())/10
+        controller.motor_3.set_measurement_parameters(
+            scan_from=motor_3_from, scan_to=motor_3_to, scan_step=motor_3_step)
+
+        worker = CalibratingThread()
         self.workers.append(worker)
-        # self.sensor_real_time_graph.timer.stop()
+        self.graph_3d.clear_graph()
         worker.start()
-        worker.finished.connect(lambda: self.graph_2d.timer.start())
+        worker.finished.connect(self.graph_3d.ani.pause)
+        worker.finished.connect(self._update_all_motor_parameters)
 
     def start_homing(self, motor_id):
         worker = HomingThread(motor_id)
@@ -540,10 +562,11 @@ class Window(QMainWindow):
         worker.start()
 
         worker.finished.connect(self._reset_layout)
+        worker.finished.connect(self.graph_3d.ani.pause)
 
     def stop_motors(self):
         controller.stop_motors_and_disconnect()
-        self._set_disconnected_layout()
+        # self._set_disconnected_layout()
 
     def connect_or_disconnect_devices(self):
         if self._connection_button.text() == "Connect":
@@ -561,12 +584,11 @@ class Window(QMainWindow):
 
 
 class CalibratingThread(QThread):
-    def __init__(self, input_data):
+    def __init__(self):
         super().__init__()
-        self.input_data = input_data
 
     def run(self) -> None:
-        controller.calibrate(self.input_data)
+        controller.calibrate()
         return
 
 

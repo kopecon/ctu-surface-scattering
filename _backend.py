@@ -137,20 +137,11 @@ class MotorController:
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
         print("Controller disconnected.")
 
-    def calibrate(self, input_data):
+    def calibrate(self):
         self.measurement_data.clear()
         # TODO: Find better solution
-        motor_3_from = float(input_data[2]) - float(input_data[3])
-        motor_3_to = float(input_data[2]) + float(input_data[3])
-        self.motor_1.set_measurement_parameters(scan_from=float(input_data[0]), scan_to=float(input_data[0]))
-        self.motor_2.set_measurement_parameters(scan_from=float(input_data[1]), scan_to=float(input_data[1]))
-        self.motor_3.scan_step /= 10  # Divide the step of motor 3 by 10
-        self.motor_3.set_measurement_parameters(scan_from=motor_3_from, scan_to=motor_3_to)
+
         _calibration.calibration(self)
-        '''self.motor_1.set_measurement_parameters(scan_from=float(0), scan_to=float(90))
-        self.motor_2.set_measurement_parameters(scan_from=float(90), scan_to=float(180))
-        self.motor_3.scan_step *= 10  # Return to the previous value
-        self.motor_3.set_measurement_parameters(scan_from=float(0), scan_to=float(90))'''
 
     def scanning(self, thread_signal):
         self.measurement_data.clear()
@@ -258,7 +249,7 @@ class _Motor:
         self.scan_from = 0
         self.scan_to = 90
         self.scan_step = 30
-        self.scan_positions = self.find_range(self.scan_from, self.scan_to)
+        self.scan_positions = self.find_range(self.scan_from, self.scan_to, self.scan_step)
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
     def _while_moving_do(self, value: int):
@@ -438,16 +429,16 @@ class _Motor:
         elif new_position < previous_position:
             return 'BACKWARD'
 
-    def find_range(self, start, stop):
+    def find_range(self, start, stop, step):
         # TODO: Test all range options and fix illegal combinations (m3 from 270 to 90 etc...)
         difference = stop - start
         if difference >= 0:
-            dx = int((stop - start) / self.scan_step + 1)
+            dx = int((stop - start) / step + 1)
             scan_positions = np.linspace(start, stop, endpoint=True, num=dx)
             return scan_positions
         else:
-            first_half = self.find_range(start, 360)
-            second_half = self.find_range(0, stop)
+            first_half = self.find_range(start, 360, self.scan_step)
+            second_half = self.find_range(0, stop, self.scan_step)
             scan_positions = np.concatenate((first_half, second_half), axis=0)
             # 360 and 0 are the same angle... remove one of those.
             scan_positions = np.delete(scan_positions, np.where(scan_positions == 0))
@@ -523,7 +514,7 @@ class _Motor:
         self.scan_from = self.scan_from if scan_from is None else scan_from
         self.scan_to = self.scan_to if scan_to is None else scan_to
         self.scan_step = self.scan_step if scan_step is None else scan_step
-        self.scan_positions = self.find_range(self.scan_from, self.scan_to)
+        self.scan_positions = self.find_range(self.scan_from, self.scan_to, self.scan_step)
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
 
@@ -616,7 +607,6 @@ class _VirtualMotor(_Motor):
 
     def __init__(self, parent: MotorController, motor_id: int, hardware_limits: tuple, polling_rate=200):
         super().__init__(parent, motor_id, hardware_limits, polling_rate)
-        self.current_position = 0
         self.current_velocity = 20
         self.current_acceleration = 30
 

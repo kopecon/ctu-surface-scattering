@@ -129,6 +129,8 @@ class Graph3D:
         for art in list(self.ax.lines):
             art.remove()
 
+        self.ani.resume()
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
