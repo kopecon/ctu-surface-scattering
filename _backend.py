@@ -690,10 +690,10 @@ class Sensor:
                 data_ratio = self.current_a0 / self.current_a1
                 return self.current_a0, self.current_a1, data_ratio
 
-        except nidaqmx.errors.DaqNotFoundError:
+        except nidaqmx.errors.DaqError:
             # print("Controller not found. Returning random data.")
-            self.current_a0 = random.randint(42, 69)
-            self.current_a1 = random.randint(69, 420)
+            self.current_a0 = random.randint(42, 70)
+            self.current_a1 = random.randint(71, 420)
             if len(self.a0_history) > self.history_length:
                 self.a0_history = self.a0_history[1:]
             if len(self.a1_history) > self.history_length:
