@@ -36,8 +36,12 @@ class Graph2D:
         self.timer = QTimer()
         self.timer.setInterval(self.time_interval)
         self.timer.timeout.connect(self.update_plot_data)
-        self.timer.timeout.connect(self.try_to_measure_scattering)
+        # self.timer.timeout.connect(controller.sensor.measure_scattering)
         self.timer.start()
+
+    def get_sensor_data(self):
+        if not controller.sensor.occupied:
+            return controller.sensor.measure_scattering()
 
     def update_plot_data(self):
         # Remove the first values in the list to clear memory
@@ -51,16 +55,8 @@ class Graph2D:
         self.a0_max_values.append(controller.sensor.max_value_a0)
         self.data_line.setData(self.time, self.a0_values)  # Update the data.
         self.data_line_2.setData(self.time, self.a0_max_values)  # Update the data.
-        self.max_a0_text.setText(f"Max A0 = {self.a0_max_values[-1]}")
+        self.max_a0_text.setText(f"Max A0 = {round(self.a0_max_values[-1], 7)}")
         self.max_a0_text.setPos(self.time[-1], self.a0_max_values[-1])
-
-    @staticmethod
-    def try_to_measure_scattering():
-        try:
-            controller.sensor.measure_scattering()
-        except:
-            # TODO: Specify exception
-            pass
 
     def reset_max_value(self):
         controller.sensor.max_value_a0 = self.a0_values[-1]

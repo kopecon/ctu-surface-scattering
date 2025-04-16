@@ -160,10 +160,10 @@ class MotorController:
         scan_data_cluster = pd.DataFrame(columns=column_names)
 
         while n < self.sensor.number_of_measurement_points:
-            sensor_data = self.sensor.measure_scattering()
+            sensor_data = self.sensor.measure_scattering(priority=True)
             data_n = {
                 "motor_1_position": self.motor_1.current_position,
-                "motor_2_position": self.motor_2.current_position,
+                "motor_2_position": round(self.motor_2.current_position, 0),  # TODO: solve rounding
                 "motor_3_position": self.motor_3.current_position,
                 "a0": [sensor_data[0]],
                 "a1": [sensor_data[1]],
@@ -190,7 +190,7 @@ class MotorController:
         '''
 
         self.measurement_data.append({'motor_1_position': self.motor_1.current_position,
-                                      'motor_2_position': self.motor_2.current_position,
+                                      'motor_2_position': round(self.motor_2.current_position, 0),
                                       'motor_3_position': self.motor_3.current_position,
                                       'a0': scan_output.iloc[3],
                                       'a1': scan_output.iloc[4]})
@@ -260,7 +260,8 @@ class _Motor:
         while message_type != 2 or message_id != value:
             self.is_moving = True
             position = self.get_position()
-            print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
+            self.current_position = position[1]
+            # print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
             message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
             movement_direction = self._check_for_movement_direction(position[1])
             illegal_position = self.check_for_illegal_position(position[1])
@@ -286,6 +287,7 @@ class _Motor:
             self.set_rotation_mode(mode=2, direction=0)  # Return to quickest pathing mode
         time.sleep(0.5)
         position = self.get_position()
+        self.current_position = position[1]
         print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
 
     def _load_settings(self):
@@ -419,7 +421,7 @@ class _Motor:
             if left_limit <= target_position <= right_limit:
                 return False
             else:
-                print(left_limit, target_position, right_limit)
+                # print(left_limit, target_position, right_limit)
                 return True
 
     def _check_for_movement_direction(self, previous_position):
@@ -587,7 +589,7 @@ class _Motor:
                     self.move_to_position(position)  # Rotate anticlockwise
         else:
             print("Movement would result in illegal position")
-        self.current_position = self.get_position()[0]
+        self.current_position = self.get_position()[1]
 
     def stop(self):
         # stop_immediate(self, channel)  might be another option but following version works so far.
@@ -661,9 +663,12 @@ class Sensor:
         self.max_value_a0 = 0
         self.max_value_a1 = 0
         self.number_of_measurement_points = 500
+        self.occupied = False
         self.measure_scattering()  # Obtain initial values
 
-    def measure_scattering(self):
+    def measure_scattering(self, priority=False):
+        if priority:
+            self.occupied = True
         try:
             with nidaqmx.Task() as task:
                 task.ai_channels.add_ai_voltage_chan(
@@ -687,11 +692,14 @@ class Sensor:
                     self.a1_history = self.a0_history[1:]
                 self.a0_history.append(self.current_a0)
                 self.a1_history.append(self.current_a1)
+                if self.current_a0 > self.max_value_a0:
+                    self.max_value_a0 = self.current_a0
                 data_ratio = self.current_a0 / self.current_a1
+                self.occupied = False
                 return self.current_a0, self.current_a1, data_ratio
 
         except nidaqmx.errors.DaqError:
-            # print("Controller not found. Returning random data.")
+            print("Controller not found. Returning random data.")
             self.current_a0 = random.randint(42, 70)
             self.current_a1 = random.randint(71, 420)
             if len(self.a0_history) > self.history_length:
@@ -703,10 +711,11 @@ class Sensor:
             if self.current_a0 > self.max_value_a0:
                 self.max_value_a0 = self.current_a0
             data_ratio = self.current_a0 / self.current_a1
+            self.occupied = False
             return self.current_a0, self.current_a1, data_ratio
 
     def get_last_measurement(self):
-        return self.a0_history[-1], self.a1_history[-1]
+        return self.a0_history[-1], self.a1_history[-1], self.a0_history[-1] / self.a1_history[-1]
 
     def set_number_of_measurement_points(self, value):
         self.number_of_measurement_points = int(value)

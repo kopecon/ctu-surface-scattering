@@ -387,9 +387,9 @@ class Window(QMainWindow):
 
     def update_motor_positions(self):
         # This is called periodically in background task to update motor positions in GUI in real time
-        self._m1_position_label.setText(f"Position: {round(controller.motor_1.current_position, 3)}")
-        self._m2_position_label.setText(f"Position: {round(controller.motor_2.current_position, 3)}")
-        self._m3_position_label.setText(f"Position: {round(controller.motor_3.current_position, 3)}")
+        self._m1_position_label.setText(f"Position: {round(controller.motor_1.current_position, 1)}")
+        self._m2_position_label.setText(f"Position: {round(controller.motor_2.current_position, 1)}")
+        self._m3_position_label.setText(f"Position: {round(controller.motor_3.current_position, 1)}")
 
     def _set_disconnected_layout(self):
         self._disable_every_widget(QPushButton)
