@@ -162,9 +162,9 @@ class MotorController:
         while n < self.sensor.number_of_measurement_points:
             sensor_data = self.sensor.measure_scattering(priority=True)
             data_n = {
-                "motor_1_position": self.motor_1.current_position,
+                "motor_1_position": round(self.motor_1.current_position, 0),
                 "motor_2_position": round(self.motor_2.current_position, 0),  # TODO: solve rounding
-                "motor_3_position": self.motor_3.current_position,
+                "motor_3_position": round(self.motor_3.current_position, 0),
                 "a0": [sensor_data[0]],
                 "a1": [sensor_data[1]],
                 "data_ratio": [sensor_data[2]]}
