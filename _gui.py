@@ -325,6 +325,8 @@ class Window(QMainWindow):
         # Disable movement until initial homing is done
         self._disable_every_widget(QPushButton)
         self._home_all_button.setEnabled(True)
+        self._connection_button.setEnabled(True)
+        self._graph_button.setEnabled(True)
 
     # ----------------------------------------------------------------------    Wrappers to make creating widgets easier
     @staticmethod
