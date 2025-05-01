@@ -1,3 +1,5 @@
+import math
+
 from PySide6.QtWidgets import QMainWindow, QWidget, QGridLayout
 from PySide6.QtCore import QTimer, QSize
 import pyqtgraph as pg
@@ -38,10 +40,6 @@ class Graph2D:
         self.timer.timeout.connect(self.update_plot_data)
         # self.timer.timeout.connect(controller.sensor.measure_scattering)
         self.timer.start()
-
-    def get_sensor_data(self):
-        if not controller.sensor.occupied:
-            return controller.sensor.measure_scattering()
 
     def update_plot_data(self):
         # Remove the first values in the list to clear memory
@@ -102,8 +100,8 @@ class Graph3D:
                 color_scale_factor = i / len(controller.motor_1.scan_positions)
                 color_scale_factor = 1 - color_scale_factor  # Turn the scaling from dark to light
                 for data_entry in self.plot_data:
-                    if data_entry['motor_1_position'] == motor_1_position and \
-                            data_entry['motor_2_position'] == motor_2_position:
+                    if math.isclose(data_entry['motor_1_position'], motor_1_position, abs_tol=0.5) and \
+                            math.isclose(data_entry['motor_2_position'], motor_2_position, abs_tol=0.5):
                         x.append(data_entry['motor_3_position'])
                         y.append(data_entry['a0'])
                 self.canvas.axes.plot(x, y, zs=motor_2_position, zdir='y',
