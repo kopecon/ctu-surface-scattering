@@ -162,9 +162,9 @@ class MotorController:
         while n < self.sensor.number_of_measurement_points:
             sensor_data = self.sensor.measure_scattering(priority=True)
             data_n = {
-                "motor_1_position": round(self.motor_1.current_position, 1),
-                "motor_2_position": round(self.motor_2.current_position, 1),  # TODO: solve rounding
-                "motor_3_position": round(self.motor_3.current_position, 1),
+                "motor_1_position": self.motor_1.current_position,
+                "motor_2_position": self.motor_2.current_position,
+                "motor_3_position": self.motor_3.current_position,
                 "a0": [sensor_data[0]],
                 "a1": [sensor_data[1]],
                 "data_ratio": [sensor_data[2]]}
@@ -698,7 +698,7 @@ class Sensor:
                 self.occupied = False
                 return self.current_a0, self.current_a1, data_ratio
 
-        except nidaqmx.errors.DaqError:
+        except nidaqmx.errors.DaqNotFoundError:
             print("Controller not found. Returning random data.")
             self.current_a0 = random.randint(42, 70)
             self.current_a1 = random.randint(71, 420)
