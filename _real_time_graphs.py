@@ -125,7 +125,9 @@ class Graph3D:
 
     def clear_graph(self):
         self.canvas.axes.set_xticks(controller.motor_3.scan_positions)
+        self.canvas.axes.set_xlim([controller.motor_3.scan_positions[0], controller.motor_3.scan_positions[-1]])
         self.canvas.axes.set_yticks(controller.motor_2.scan_positions)
+        self.canvas.axes.set_ylim([controller.motor_2.scan_positions[0], controller.motor_2.scan_positions[-1]])
 
         for art in list(self.canvas.axes.lines):
             art.remove()
