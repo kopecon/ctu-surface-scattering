@@ -79,6 +79,7 @@ class Window(QMainWindow):
 
         # Measurement arguments:
         self.graph_window = _real_time_graphs.GraphWindow()
+        self.graph_2D = self.graph_window.graph_2d
         self._input_data = []
         self._scan_1d = False
         self._scan_3d = False
@@ -235,14 +236,21 @@ class Window(QMainWindow):
 
         # Checkbox
         self._measurement_1d = QCheckBox("1D", self)
+        self._measurement_1d.clicked.connect(lambda: self._measurement_1d.setEnabled(False))
+        self._measurement_1d.clicked.connect(lambda: self._measurement_3d.setEnabled(True))
+        self._measurement_1d.clicked.connect(lambda: self._measurement_3d.setChecked(False))
+        self._measurement_1d.clicked.connect(lambda: controller.set_scan_type('1D'))
+        self._measurement_1d.clicked.connect(self._restrict_value_editing_for_1d_scan)
+
         self._measurement_3d = QCheckBox("3D", self)
-        self._measurement_1d.setChecked(False)
+        self._measurement_3d.clicked.connect(lambda: self._measurement_3d.setEnabled(False))
+        self._measurement_3d.clicked.connect(lambda: self._measurement_1d.setEnabled(True))
+        self._measurement_3d.clicked.connect(lambda: self._measurement_1d.setChecked(False))
+        self._measurement_3d.clicked.connect(lambda: controller.set_scan_type('3D'))
+        self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_scan)
+
         self._measurement_3d.setChecked(True)
         self._measurement_3d.setEnabled(False)
-        self._measurement_1d.clicked.connect(self._restrict_value_editing_for_1d_scan)
-        self._measurement_1d.clicked.connect(lambda: controller.set_scan_type('1D'))
-        self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_scan)
-        self._measurement_3d.clicked.connect(lambda: controller.set_scan_type('3D'))
 
         # Logo
         # logo = self._create_logo()  # Currently unused
@@ -404,10 +412,6 @@ class Window(QMainWindow):
         self._connection_button.setText("Disconnect")
 
     def _restrict_value_editing_for_1d_scan(self):
-        self._measurement_1d.setEnabled(False)
-        self._measurement_3d.setEnabled(True)
-        self._measurement_3d.setChecked(False)
-
         self._m1_to_value.setEnabled(False)
         self._m1_step_value.setEnabled(False)
         self._m2_to_value.setEnabled(False)
@@ -425,10 +429,6 @@ class Window(QMainWindow):
     def _restrict_value_editing_for_3d_scan(self):
         # First enable everything
         self._enable_every_widget(QLineEdit)
-        # Disable what is needed
-        self._measurement_3d.setEnabled(False)
-        self._measurement_1d.setEnabled(True)
-        self._measurement_1d.setChecked(False)
 
         self._m1_from_label.setText("From")
         self._m2_from_label.setText("From")
@@ -443,11 +443,11 @@ class Window(QMainWindow):
         self._time_to_finish_value_label.setText("0d 0h 0m 0s")
         self._enable_every_widget()
 
-        self._measurement_1d.setChecked(False)
-        self._measurement_3d.setChecked(True)
-        self._measurement_3d.setEnabled(False)
-        self._m1_from_label.setText("From")
-        self._m2_from_label.setText("From")
+        # Disable selected scan type checkbox:
+        if self._measurement_3d.isChecked():
+            self._measurement_3d.setEnabled(False)
+        elif self._measurement_1d.isChecked():
+            self._measurement_1d.setEnabled(False)
 
     def _update_progress_bar_label(self, finish_time):
         delta = timedelta(seconds=finish_time)
@@ -455,9 +455,9 @@ class Window(QMainWindow):
         n = (str(days) + "d " + str(hours) + "h " + str(minutes) + "m " + str(seconds) + "s")
         self._time_to_finish_value_label.setText(n)
 
-    def _update_progress_bar(self, signal: list[int, float]):
-        progress = signal[0]
-        finish_time = signal[1]
+    def _update_progress_bar(self, progress_status: list[int, float]):
+        progress = progress_status[0]
+        finish_time = progress_status[1]
         self._progress_bar.setValue(progress)
         self._update_progress_bar_label(finish_time)
 
@@ -547,7 +547,8 @@ class Window(QMainWindow):
     def start_scanning(self):
         worker = ScanningThread()
         self.workers.append(worker)
-        worker.thread_signal.connect(self._update_progress_bar)
+        worker.thread_signal_progress_status.connect(self._update_progress_bar)
+        worker.thread_signal_toggle_2d_graph_timer.connect(self.graph_2D.toggle_timer)
 
         self._disable_every_widget(QPushButton)
         self._stop_button.setEnabled(True)
@@ -557,7 +558,6 @@ class Window(QMainWindow):
         worker.start()
 
         worker.finished.connect(self._reset_layout)
-        worker.finished.connect(self.graph_window.graph_3d.ani.pause)
 
     def stop_motors(self):
         controller.stop_motors_and_disconnect()
@@ -612,13 +612,15 @@ class MovingThread(QThread):
 
 
 class ScanningThread(QThread):
-    thread_signal = Signal(list)
+    thread_signal_progress_status = Signal(list)
+    thread_signal_toggle_2d_graph_timer = Signal()
 
     def __init__(self):
         super().__init__()
+        controller.sensor.toggle_graph_2D_timer = self.thread_signal_toggle_2d_graph_timer
 
     def run(self) -> None:
-        controller.scanning(self.thread_signal)
+        controller.scanning(self.thread_signal_progress_status)
         return
 
 

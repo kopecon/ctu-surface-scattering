@@ -34,7 +34,7 @@ def _save_to_file(data, scan_type, name):
         print(line, file=f)
 
 
-def _update_progressbar(progress_count, start_time, full_range, thread_signal):
+def _update_progressbar(progress_count, start_time, full_range, thread_signal_progress_status):
     print("Progres count: ", progress_count)
     progress = (100 / full_range) * progress_count
     print("Progress: ", progress, " %")
@@ -48,12 +48,12 @@ def _update_progressbar(progress_count, start_time, full_range, thread_signal):
     delta = timedelta(seconds=time_to_finish)
     (days, hours, minutes, seconds) = _days_hours_minutes_seconds(delta)
     print("Time to finish: ", days, "d", hours, "h", minutes, "m", seconds, "s")
-    output_signal = [progress, time_to_finish]
-    if hasattr(thread_signal, 'emit'):
-        thread_signal.emit(output_signal)
+    progress_status = [progress, time_to_finish]
+    if hasattr(thread_signal_progress_status, 'emit'):
+        thread_signal_progress_status.emit(progress_status)
 
 
-def scan(controller, thread_signal):
+def scan(controller, thread_signal_progress_status):
     name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"  # Name of the saved file
     print("Output file name:", name)
 
@@ -84,11 +84,10 @@ def scan(controller, thread_signal):
                     # Motor was called to stop => end scanning
                     return controller.unstop_motors()
 
-                # TODO: clean measuring etc...
                 measurement_data = controller.collect_sensor_data()
 
                 progress_count += 1
-                _update_progressbar(progress_count, scan_start_time, full_range, thread_signal)
+                _update_progressbar(progress_count, scan_start_time, full_range, thread_signal_progress_status)
                 _save_to_file(measurement_data, controller.scan_type, name)
 
     print("Done")

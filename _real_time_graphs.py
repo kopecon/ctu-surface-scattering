@@ -38,7 +38,7 @@ class Graph2D:
         self.timer = QTimer()
         self.timer.setInterval(self.time_interval)
         self.timer.timeout.connect(self.update_plot_data)
-        # self.timer.timeout.connect(controller.sensor.measure_scattering)
+        self.timer.timeout.connect(controller.sensor.measure_scattering)
         self.timer.start()
 
     def update_plot_data(self):
@@ -55,6 +55,12 @@ class Graph2D:
         self.data_line_2.setData(self.time, self.a0_max_values)  # Update the data.
         self.max_a0_text.setText(f"Max A0 = {round(self.a0_max_values[-1], 7)}")
         self.max_a0_text.setPos(self.time[-1], self.a0_max_values[-1])
+
+    def toggle_timer(self):
+        if self.timer.isActive():
+            self.timer.stop()
+        else:
+            self.timer.start()
 
     def reset_max_value(self):
         controller.sensor.max_value_a0 = self.a0_values[-1]
@@ -125,9 +131,9 @@ class Graph3D:
 
     def clear_graph(self):
         self.canvas.axes.set_xticks(controller.motor_3.scan_positions)
-        self.canvas.axes.set_xlim([controller.motor_3.scan_positions[0], controller.motor_3.scan_positions[-1]])
+        self.canvas.axes.set_xlim([controller.motor_3.scan_positions[0]-10, controller.motor_3.scan_positions[-1]+10])
         self.canvas.axes.set_yticks(controller.motor_2.scan_positions)
-        self.canvas.axes.set_ylim([controller.motor_2.scan_positions[0], controller.motor_2.scan_positions[-1]])
+        self.canvas.axes.set_ylim([controller.motor_2.scan_positions[0]-10, controller.motor_2.scan_positions[-1]+10])
 
         for art in list(self.canvas.axes.lines):
             art.remove()

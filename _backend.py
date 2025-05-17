@@ -137,22 +137,6 @@ class MotorController:
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
         print("Controller disconnected.")
 
-    def calibrate(self):
-        self.measurement_data.clear()
-        # TODO: Find better solution
-
-        _calibration.calibration(self)
-
-    def scanning(self, thread_signal):
-        self.measurement_data.clear()
-
-        # TODO: Find better solution
-        if self.scan_type == '1D':
-            self.motor_1.scan_positions = [self.motor_1.scan_from]
-            self.motor_2.scan_positions = [self.motor_2.scan_from]
-
-        _scan.scan(self, thread_signal)
-
     def collect_sensor_data(self):
         n = 0
 
@@ -160,7 +144,10 @@ class MotorController:
         scan_data_cluster = pd.DataFrame(columns=column_names)
 
         while n < self.sensor.number_of_measurement_points:
-            sensor_data = self.sensor.measure_scattering(priority=True)
+            self.sensor.toggle_graph_2D_timer.emit()
+            sensor_data = self.sensor.measure_scattering()
+            self.sensor.toggle_graph_2D_timer.emit()
+
             data_n = {
                 "motor_1_position": self.motor_1.current_position,
                 "motor_2_position": self.motor_2.current_position,
@@ -194,7 +181,21 @@ class MotorController:
                                       'motor_3_position': self.motor_3.current_position,
                                       'a0': scan_output.iloc[3],
                                       'a1': scan_output.iloc[4]})
+
         return scan_output
+
+    def calibrate(self):
+        self.measurement_data.clear()
+        _calibration.calibration(self)
+
+    def scanning(self, thread_signal_progress_status):
+        self.measurement_data.clear()
+
+        if self.scan_type == '1D':
+            self.motor_1.scan_positions = [self.motor_1.scan_from]
+            self.motor_2.scan_positions = [self.motor_2.scan_from]
+
+        _scan.scan(self, thread_signal_progress_status)
 
     def stop_motors_and_disconnect(self):
         print("Stopping motors!")
@@ -663,12 +664,10 @@ class Sensor:
         self.max_value_a0 = 0
         self.max_value_a1 = 0
         self.number_of_measurement_points = 500
-        self.occupied = False
         self.measure_scattering()  # Obtain initial values
+        self.toggle_graph_2D_timer = None  # Gets assigned in GUI
 
-    def measure_scattering(self, priority=False):
-        if priority:
-            self.occupied = True
+    def measure_scattering(self):
         try:
             with nidaqmx.Task() as task:
                 task.ai_channels.add_ai_voltage_chan(
@@ -685,7 +684,7 @@ class Sensor:
                 sensor_data = task.read()
                 self.current_a0 = float(sensor_data[0])
                 self.current_a1 = float(sensor_data[1])
-                # Save only last 50 values
+                # Save only last 5 (history_length) values
                 if len(self.a0_history) > self.history_length:
                     self.a0_history = self.a0_history[1:]
                 if len(self.a1_history) > self.history_length:
@@ -695,11 +694,11 @@ class Sensor:
                 if self.current_a0 > self.max_value_a0:
                     self.max_value_a0 = self.current_a0
                 data_ratio = self.current_a0 / self.current_a1
-                self.occupied = False
                 return self.current_a0, self.current_a1, data_ratio
 
         except nidaqmx.errors.DaqNotFoundError:
-            print("Controller not found. Returning random data.")
+            # This part is for debugging, when accessing measurement without the hardware.
+            # The type of the nidaqmx.error to except seems to be changing based on which PC the program runs on.
             self.current_a0 = random.randint(42, 70)
             self.current_a1 = random.randint(71, 420)
             if len(self.a0_history) > self.history_length:
@@ -711,7 +710,6 @@ class Sensor:
             if self.current_a0 > self.max_value_a0:
                 self.max_value_a0 = self.current_a0
             data_ratio = self.current_a0 / self.current_a1
-            self.occupied = False
             return self.current_a0, self.current_a1, data_ratio
 
     def get_last_measurement(self):
