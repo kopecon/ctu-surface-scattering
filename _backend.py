@@ -166,7 +166,7 @@ class MotorController:
         # Now, each column has n number of values => get average value for every column
         scan_output = scan_data_cluster.mean()
 
-        scan_output['data_ratio'] = round(scan_output['data_ratio'], 3)
+        scan_output['data_ratio'] = scan_output['data_ratio']
         ''' Example of scan output:
         motor_1_position       0.0
         motor_2_position      90.0
@@ -175,9 +175,8 @@ class MotorController:
         a1                249.95
         data_ratio           0.277
         '''
-
         self.measurement_data.append({'motor_1_position': self.motor_1.current_position,
-                                      'motor_2_position': round(self.motor_2.current_position, 0),
+                                      'motor_2_position': self.motor_2.current_position,
                                       'motor_3_position': self.motor_3.current_position,
                                       'a0': scan_output.iloc[3],
                                       'a1': scan_output.iloc[4]})
