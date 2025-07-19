@@ -9,7 +9,8 @@ import _gui
 # TODO: TEST periodical data measurement for real time graph  (Hardware)
 # FIXME: Doesnt graph motor 1 at 60 degrees  (Hardware)
 
-if __name__ == '__main__':
+
+def main():
     # Create the Qt Application
     app = QApplication([])
     window = _gui.Window()
@@ -17,3 +18,7 @@ if __name__ == '__main__':
     window_termination = app.exec()
     _gui.controller.disconnect()
     sys.exit(window_termination)
+
+
+if __name__ == '__main__':
+    main()
