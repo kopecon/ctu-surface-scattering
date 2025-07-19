@@ -252,6 +252,22 @@ class _Motor:
         self.scan_positions = self.find_range(self.scan_from, self.scan_to, self.scan_step)
 
     # -----------------------------------------------------------------------------------   Motor Information Collecting
+    @staticmethod
+    def software_to_hardware_coordinates(software_position):
+        # This should be used only for the motor 1 and motor 3.
+        hardware_position = 90 - software_position
+        if hardware_position < 0:
+            hardware_position += 360
+        return hardware_position
+
+    @staticmethod
+    def hardware_to_software_coordinates(hardware_position):
+        # This should be used only for the motor 1 and motor 3.
+        software_position = hardware_position
+        if hardware_position < 0:
+            hardware_position += 360
+        return software_position
+
     def _while_moving_do(self, value: int):
         # Works in combination with polling. "start polling, wait, stop polling" to perform tasks while moving.
         self.parent_controller.clear_message_queue(self.motor_id)
