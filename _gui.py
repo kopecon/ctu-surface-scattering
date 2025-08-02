@@ -1,11 +1,11 @@
 # System libraries
 import sys
-import time
+import logging
 from datetime import timedelta
 
 # GUI libraries
 from PySide6.QtGui import QPixmap, QKeyEvent, QDoubleValidator, QIntValidator
-from PySide6.QtCore import QSize, Qt, QThread, Signal
+from PySide6.QtCore import QSize, Qt, QThread, Signal, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -19,10 +19,15 @@ from PySide6.QtWidgets import (
 )
 
 # Custom modules:
-import _backend
+from _backend import motor_controller
 import _real_time_graphs
+import _parameters as param
 
-print("Library import done.")
+
+logger = logging.getLogger(__name__)
+
+
+logger.info("Library import done.")
 
 """
 The surface scattering measuring project consists of 3 files:
@@ -47,14 +52,6 @@ Dependent Software:
     Correct motors have to be set up in the Thorlabs Kinesis user interface.
     Kinesis user interface has to be closed while this program is running, or the controller fails to connect.
 """
-
-controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
-connection_check = controller.connect()  # Connects to the controller and returns 0 if connected hardware, 1 if virtual.
-
-# Set initial values for motor positions predefined in the GUI
-controller.motor_1.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
-controller.motor_2.set_measurement_parameters(scan_from=float(90), scan_to=float(180), scan_step=float(30))
-controller.motor_3.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
 
 
 def days_hours_minutes_seconds(dt):
@@ -137,17 +134,17 @@ class Window(QMainWindow):
 
         # Line edits
         double_validator = QDoubleValidator()  # Line edit will accept only Double types.
-        self._m1_from_value = self._line_edit(f"{controller.motor_1.scan_from}")
+        self._m1_from_value = self._line_edit(f"{motor_controller.motor_1.scan_from}")
         self._m1_from_value.setValidator(double_validator)
         self._m1_from_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m1_from_value, 1, 'scan_from'))
 
-        self._m1_to_value = self._line_edit(f"{controller.motor_1.scan_to}")
+        self._m1_to_value = self._line_edit(f"{motor_controller.motor_1.scan_to}")
         self._m1_to_value.setValidator(double_validator)
         self._m1_to_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m1_to_value, 1, 'scan_to'))
 
-        self._m1_step_value = self._line_edit(f"{controller.motor_1.scan_step}")
+        self._m1_step_value = self._line_edit(f"{motor_controller.motor_1.scan_step}")
         self._m1_step_value.setValidator(double_validator)
         self._m1_step_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m1_step_value, 1, 'scan_step'))
@@ -155,17 +152,17 @@ class Window(QMainWindow):
         self._m1_move_to_value = self._line_edit("0")
         self._m1_move_to_value.setValidator(double_validator)
 
-        self._m2_from_value = self._line_edit(f"{controller.motor_2.scan_from}")
+        self._m2_from_value = self._line_edit(f"{motor_controller.motor_2.scan_from}")
         self._m2_from_value.setValidator(double_validator)
         self._m2_from_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m2_from_value, 2, 'scan_from'))
 
-        self._m2_to_value = self._line_edit(f"{controller.motor_2.scan_to}")
+        self._m2_to_value = self._line_edit(f"{motor_controller.motor_2.scan_to}")
         self._m2_to_value.setValidator(double_validator)
         self._m2_to_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m2_to_value, 2, 'scan_to'))
 
-        self._m2_step_value = self._line_edit(f"{controller.motor_2.scan_step}")
+        self._m2_step_value = self._line_edit(f"{motor_controller.motor_2.scan_step}")
         self._m2_step_value.setValidator(double_validator)
         self._m2_step_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m2_step_value, 2, 'scan_step'))
@@ -173,17 +170,17 @@ class Window(QMainWindow):
         self._m2_move_to_value = self._line_edit("0")
         self._m2_move_to_value.setValidator(double_validator)
 
-        self._m3_from_value = self._line_edit(f"{controller.motor_3.scan_from}")
+        self._m3_from_value = self._line_edit(f"{motor_controller.motor_3.scan_from}")
         self._m3_from_value.setValidator(double_validator)
         self._m3_from_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m3_from_value, 3, 'scan_from'))
 
-        self._m3_to_value = self._line_edit(f"{controller.motor_3.scan_to}")
+        self._m3_to_value = self._line_edit(f"{motor_controller.motor_3.scan_to}")
         self._m3_to_value.setValidator(double_validator)
         self._m3_to_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m3_to_value, 3, 'scan_to'))
 
-        self._m3_step_value = self._line_edit(f"{controller.motor_3.scan_step}")
+        self._m3_step_value = self._line_edit(f"{motor_controller.motor_3.scan_step}")
         self._m3_step_value.setValidator(double_validator)
         self._m3_step_value.editingFinished.connect(
             lambda: self._update_motor_parameters(self._m3_step_value, 3, 'scan_step'))
@@ -200,7 +197,8 @@ class Window(QMainWindow):
         self._number_of_measurement_points_value = self._line_edit("500")
         self._number_of_measurement_points_value.setValidator(int_validator)
         self._number_of_measurement_points_value.editingFinished.connect(
-            lambda: controller.sensor.set_number_of_measurement_points(self._number_of_measurement_points_value.text()))
+            lambda: motor_controller.sensor.set_number_of_measurement_points(
+                self._number_of_measurement_points_value.text()))
 
         # Buttons
         self._home1_button = self._push_button("Motor 1 Home")
@@ -239,14 +237,14 @@ class Window(QMainWindow):
         self._measurement_1d.clicked.connect(lambda: self._measurement_1d.setEnabled(False))
         self._measurement_1d.clicked.connect(lambda: self._measurement_3d.setEnabled(True))
         self._measurement_1d.clicked.connect(lambda: self._measurement_3d.setChecked(False))
-        self._measurement_1d.clicked.connect(lambda: controller.set_scan_type('1D'))
+        self._measurement_1d.clicked.connect(lambda: motor_controller.set_scan_type('1D'))
         self._measurement_1d.clicked.connect(self._restrict_value_editing_for_1d_scan)
 
         self._measurement_3d = QCheckBox("3D", self)
         self._measurement_3d.clicked.connect(lambda: self._measurement_3d.setEnabled(False))
         self._measurement_3d.clicked.connect(lambda: self._measurement_1d.setEnabled(True))
         self._measurement_3d.clicked.connect(lambda: self._measurement_1d.setChecked(False))
-        self._measurement_3d.clicked.connect(lambda: controller.set_scan_type('3D'))
+        self._measurement_3d.clicked.connect(lambda: motor_controller.set_scan_type('3D'))
         self._measurement_3d.clicked.connect(self._restrict_value_editing_for_3d_scan)
 
         self._measurement_3d.setChecked(True)
@@ -329,8 +327,11 @@ class Window(QMainWindow):
         self._layout.addWidget(self._home_all_button, 24, 3, 1, 1)
 
         # Perform these tasks at the start of the program
-        self.start_background_tasks()
         # Disable movement until initial homing is done
+        self.timer = QTimer()
+        self.timer.setInterval(param.gui_update_rate)
+        self.timer.timeout.connect(self.update_motor_positions)
+        self.timer.start()
         self._disable_every_widget(QPushButton)
         self._home_all_button.setEnabled(True)
         self._connection_button.setEnabled(True)
@@ -397,9 +398,9 @@ class Window(QMainWindow):
 
     def update_motor_positions(self):
         # This is called periodically in background task to update motor positions in GUI in real time
-        self._m1_position_label.setText(f"Position: {round(controller.motor_1.current_position, 1)}")
-        self._m2_position_label.setText(f"Position: {round(controller.motor_2.current_position, 1)}")
-        self._m3_position_label.setText(f"Position: {round(controller.motor_3.current_position, 1)}")
+        self._m1_position_label.setText(f"Position: {round(motor_controller.motor_1.current_position, 1)}")
+        self._m2_position_label.setText(f"Position: {round(motor_controller.motor_2.current_position, 1)}")
+        self._m3_position_label.setText(f"Position: {round(motor_controller.motor_3.current_position, 1)}")
 
     def _set_disconnected_layout(self):
         self._disable_every_widget(QPushButton)
@@ -479,7 +480,7 @@ class Window(QMainWindow):
     def _update_motor_parameters(edited_line: QLineEdit, motor_id, parameter):
         # This function is a bit wild, but it does what it is supposed to do while keeping the rest of the code simple.
         value = float(edited_line.text())
-        affected_motor = controller.__getattribute__(f'motor_{motor_id}')
+        affected_motor = motor_controller.__getattribute__(f'motor_{motor_id}')
         scan_from = value if parameter == 'scan_from' else None
         scan_to = value if parameter == 'scan_to' else None
         scan_step = value if parameter == 'scan_step' else None
@@ -501,19 +502,13 @@ class Window(QMainWindow):
         self._update_motor_parameters(self._m3_step_value, 3, "scan_step")
 
     #  -----------------------------------------------------------------------------------    Hardware control functions
-    def start_background_tasks(self):
-        worker = BackgroundTasksThread(self)
-        self.workers.append(worker)  # Associating the worker with the object prevents crashing
-
-        worker.start()
-
     def start_calibration(self):
-        controller.motor_1.set_measurement_parameters(scan_from=float(self._calibration_m1_value.text()))
-        controller.motor_2.set_measurement_parameters(scan_from=float(self._calibration_m2_value.text()))
+        motor_controller.motor_1.set_measurement_parameters(scan_from=float(self._calibration_m1_value.text()))
+        motor_controller.motor_2.set_measurement_parameters(scan_from=float(self._calibration_m2_value.text()))
         motor_3_from = float(self._calibration_m3_value.text())-float(self._calibration_m3_range_value.text())
         motor_3_to = float(self._calibration_m3_value.text())+float(self._calibration_m3_range_value.text())
         motor_3_step = float(self._m3_step_value.text())/10
-        controller.motor_3.set_measurement_parameters(
+        motor_controller.motor_3.set_measurement_parameters(
             scan_from=motor_3_from, scan_to=motor_3_to, scan_step=motor_3_step)
 
         worker = CalibratingThread()
@@ -560,12 +555,13 @@ class Window(QMainWindow):
         worker.finished.connect(self._reset_layout)
 
     def stop_motors(self):
-        controller.stop_motors_and_disconnect()
+        motor_controller.stop_motors_and_disconnect()
         # self._set_disconnected_layout()
 
     def connect_or_disconnect_devices(self):
         if self._connection_button.text() == "Connect":
-            _connection_check = controller.connect()  # Connects to the controller and returns 0 if connected correctly
+            # Connects to the controller and returns 0 if connected correctly
+            _connection_check = motor_controller.connect()
             if _connection_check == 1:
                 self._set_disconnected_layout()
                 # Not connected (Error)
@@ -574,7 +570,7 @@ class Window(QMainWindow):
                 # Connected
                 self._set_connected_layout()
         elif self._connection_button.text() == "Disconnect":
-            controller.disconnect()
+            motor_controller.disconnect()
             self._set_disconnected_layout()
 
 
@@ -583,7 +579,7 @@ class CalibratingThread(QThread):
         super().__init__()
 
     def run(self) -> None:
-        controller.calibrate()
+        motor_controller.calibrate()
         return
 
 
@@ -592,7 +588,7 @@ class HomingThread(QThread):
 
     def __init__(self, motor_id: int):
         super().__init__()
-        self._active_motor = controller.motors[motor_id]
+        self._active_motor = motor_controller.motors[motor_id]
 
     def run(self) -> None:
         self._active_motor.home()
@@ -604,7 +600,7 @@ class MovingThread(QThread):
     def __init__(self, motor_id, position):
         super().__init__()
         self._position = position
-        self._active_motor = controller.motors[motor_id]
+        self._active_motor = motor_controller.motors[motor_id]
 
     def run(self) -> None:
         self._active_motor.move_to_position(self._position)
@@ -617,22 +613,10 @@ class ScanningThread(QThread):
 
     def __init__(self):
         super().__init__()
-        controller.sensor.toggle_graph_2D_timer = self.thread_signal_toggle_2d_graph_timer
+        motor_controller.sensor.toggle_graph_2D_timer = self.thread_signal_toggle_2d_graph_timer
 
     def run(self) -> None:
-        controller.scanning(self.thread_signal_progress_status)
-        return
-
-
-class BackgroundTasksThread(QThread):
-    def __init__(self, active_window: Window):
-        super().__init__()
-        self.active_window = active_window
-
-    def run(self) -> None:
-        while self.active_window.isWindow():
-            self.active_window.update_motor_positions()
-            time.sleep(0.5)  # To not overload the program check for position only twice per second.
+        motor_controller.start_scanning(self.thread_signal_progress_status)
         return
 
 
@@ -651,11 +635,23 @@ class QVLine(QFrame):
         self.setFixedSize(self.frameWidth(), 30)
 
 
-if __name__ == '__main__':
+def start_gui():
+    # Connects to the controller and returns 0 if connected hardware, 1 if virtual.
+    connection_check = motor_controller.connect()
+
+    # Set initial values for motor positions predefined in the GUI
+    motor_controller.motor_1.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
+    motor_controller.motor_2.set_measurement_parameters(scan_from=float(90), scan_to=float(180), scan_step=float(30))
+    motor_controller.motor_3.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
+
     # Create the Qt Application
     app = QApplication([])
     window = Window()
     window.show()
     window_termination = app.exec()
-    controller.disconnect()
+    motor_controller.disconnect()
     sys.exit(window_termination)
+
+
+if __name__ == '__main__':
+    start_gui()

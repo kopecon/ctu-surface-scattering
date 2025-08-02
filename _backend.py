@@ -4,6 +4,7 @@ import os
 import time
 import random
 import warnings
+import logging
 
 # Math libraries:
 import numpy as np
@@ -25,34 +26,22 @@ from nidaqmx.constants import Edge, AcquisitionType
 # Custom modules:
 import _scan
 import _calibration
+import _parameters as param
+from _app_logger import log_this
 
-# Editable Parameters:
-global_polling_rate = 200
-motor_1_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 1 in [deg].
-motor_2_limits = (0, 270)  # (Counter-Clockwise, Clockwise) limits of the motor 2 in [deg].
-motor_3_limits = (270, 90)  # (Counter-Clockwise, Clockwise) limits of the motor 3 in [deg].
 
-limit_margin = 2  # How far [deg] beyond limit can device legally move without stopping.
+logger = logging.getLogger(__name__)
 
-motor_1_speed = 50  # probably [deg/s]
-motor_2_speed = 50  # probably [deg/s]
-motor_3_speed = 50  # probably [deg/s]
-
-motor_1_acceleration = 25  # probably [deg/s/s]
-motor_2_acceleration = 25  # probably [deg/s/s]
-motor_3_acceleration = 25  # probably [deg/s/s]
-
-motor_1_homing_speed = 6  # probably [deg/s]
-motor_2_homing_speed = 6  # probably [deg/s]
-motor_3_homing_speed = 6  # probably [deg/s]
-
-forward_homing_offset = -6.5  # [deg]
-backwards_homing_offset = 3  # [deg]
 
 # Non-editable parameters
-motor_1_limits = (motor_1_limits[0] - limit_margin, motor_1_limits[1] + limit_margin)
-motor_2_limits = (motor_2_limits[0] - limit_margin, motor_2_limits[1] + limit_margin)
-motor_3_limits = (motor_3_limits[0] - limit_margin, motor_3_limits[1] + limit_margin)
+motor_1_limits = (param.motor_1_limits[0] - param.limit_margin,
+                  param.motor_1_limits[1] + param.limit_margin)
+
+motor_2_limits = (param.motor_2_limits[0] - param.limit_margin,
+                  param.motor_2_limits[1] + param.limit_margin)
+
+motor_3_limits = (param.motor_3_limits[0] - param.limit_margin,
+                  param.motor_3_limits[1] + param.limit_margin)
 
 
 class MotorController:
@@ -66,6 +55,8 @@ class MotorController:
         os.environ["PATH"] += os.pathsep + "C:/Program Files/Thorlabs/Kinesis"
 
         # BSC203 Three Channel Benchtop Stepper Motor Controller model parameters
+        self.name = 'BSC203'
+        self.full_name = 'BSC203 Three Channel Benchtop Stepper Motor Controller'
         self._manufacturer = manufacturer
         self._model = model
         self._serial = serial
@@ -90,20 +81,26 @@ class MotorController:
         self.scan_type = '3D'  # Or '2D'
         self.measurement_data = []
 
+    def __repr__(self):
+        return self.name
+
     # This function is crashing the code if no device is plugged in via USB
+    @log_this
     def connect(self):
         """
         Creates the instance of BenchtopStepperMotor and opens it for communication.
         Allows us to access the 3 motors connected to BenchtopStepperMotor channels 1, 2, 3.
         The device has to be connected by USB to connect successfully.
+
         :return: 0 if connection was successful, 1 if connection was not successful
         """
+
         try:  # Has to be in try block in case USB is not connected
             MotionControl.build_device_list()  # Collect closed devices connected by USB
-            print("Device list built successfully.")
+            logger.info(f'{log_this.space}Device list built successfully.')
 
             self.active_controller = self._record.connect()  # This creates the instance of BenchtopStepperMotor
-            print("Record set up successfully.")
+            logger.info(f'{log_this.space}Record set up successfully.')
             time.sleep(1)  # Leave some time for connection to establish correctly
 
             # Connection to hardware was successful, therefore declare motors as _Motor() class.
@@ -111,19 +108,21 @@ class MotorController:
             self.motor_2 = _Motor(self, 2, motor_2_limits)
             self.motor_3 = _Motor(self, 3, motor_3_limits)
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
-            print("Connected to hardware successfully.")
+            logger.info(f'{log_this.space}Connected to hardware successfully.')
 
             return 0
         except OSError:
-            print("No devices found.")
+            logger.info(f'{log_this.space}Error: No devices found.')
             # Connection to hardware was not successful, therefore motors stay as _VirtualMotor() class.
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
-            print("Connected to virtual controller.")
+            logger.info(f'{log_this.space}Warning: Connected to virtual controller.')
             return 1
 
+    @log_this
     def disconnect(self):
         """
         Disconnects the device and closes the communication with it.
+
         :return: None
         """
         if self.active_controller is not None:
@@ -135,7 +134,7 @@ class MotorController:
             self.motor_2 = None
             self.motor_3 = None
             self.motors = [None, self.motor_1, self.motor_2, self.motor_3]
-        print("Controller disconnected.")
+        logger.info(f'{log_this.space}Controller disconnected.')
 
     def collect_sensor_data(self):
         n = 0
@@ -183,34 +182,39 @@ class MotorController:
 
         return scan_output
 
+    @log_this
     def calibrate(self):
         self.measurement_data.clear()
         _calibration.calibration(self)
 
-    def scanning(self, thread_signal_progress_status):
+    @log_this
+    def scan(self, thread_signal_progress_status):
         self.measurement_data.clear()
 
         if self.scan_type == '1D':
             self.motor_1.scan_positions = [self.motor_1.scan_from]
             self.motor_2.scan_positions = [self.motor_2.scan_from]
 
-        _scan.scan(self, thread_signal_progress_status)
+        _scan.start_scanning(self, thread_signal_progress_status)
 
+    @log_this
     def stop_motors_and_disconnect(self):
-        print("Stopping motors!")
+        logger.info(f'{log_this.space}Stopping motors!')
         for motor in self.motors:
             if isinstance(motor, _Motor):
-                print(f"    Stopping motor: {motor.motor_id}")
+                logger.info(f'{log_this.space}Stopping motor: {motor.motor_id}')
                 motor.stop()
         # self.disconnect()
         time.sleep(1)  # To ensure proper communication through USB
 
+    @log_this
     def unstop_motors(self):
         # TODO: Find better name
         self.motor_1.stopped = False
         self.motor_2.stopped = False
         self.motor_3.stopped = False
 
+    @log_this
     def set_scan_type(self, scan_type: str):
         self.scan_type = scan_type
 
@@ -251,6 +255,9 @@ class _Motor:
         self.scan_step = 30
         self.scan_positions = self.find_range(self.scan_from, self.scan_to, self.scan_step)
 
+    def __repr__(self):
+        return f'Motor {self.motor_id}'
+
     # -----------------------------------------------------------------------------------   Motor Information Collecting
     @staticmethod
     def software_to_hardware_coordinates(software_position):
@@ -277,7 +284,6 @@ class _Motor:
             self.is_moving = True
             position = self.get_position()
             self.current_position = position[1]
-            # print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
             message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
             movement_direction = self._check_for_movement_direction(position[1])
             illegal_position = self.check_for_illegal_position(position[1])
@@ -285,14 +291,14 @@ class _Motor:
                 if abs(position[1] - self.hardware_limits[1]) < abs(position[1] - self.hardware_limits[0]) \
                         and movement_direction == 'FORWARD':
                     self.stop()
-                    print(f"Motor {self.motor_id} reached right limit. Stopping!")
+                    logger.info(f'{log_this.space}Motor {self.motor_id} reached right limit. Stopping!')
                     self.reached_left_limit = False
                     self.reached_right_limit = True
                     break
                 elif abs(position[1] - self.hardware_limits[0]) < abs(position[1] - self.hardware_limits[1]) \
                         and movement_direction == 'BACKWARD':
                     self.stop()
-                    print(f"Motor {self.motor_id} reached left limit. Stopping!")
+                    logger.info(f'{log_this.space}Motor {self.motor_id} reached left limit. Stopping!')
                     self.reached_left_limit = True
                     self.reached_right_limit = False
                     break
@@ -304,7 +310,7 @@ class _Motor:
         time.sleep(0.5)
         position = self.get_position()
         self.current_position = position[1]
-        print(f"Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]")
+        logger.info(f'{log_this.space}Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]')
 
     def _load_settings(self):
         """
@@ -317,7 +323,7 @@ class _Motor:
         # Should add a delay for Kinesis to establish communication with the serial port
         time.sleep(1)
         self.settings_loaded = True
-        print(f"    Motor {self.motor_id} setting loaded.")
+        logger.info(f'{log_this.space}Motor {self.motor_id} setting loaded.')
 
     def _start_polling(self, rate=200):
         self.parent_controller.start_polling(self.motor_id, rate)
@@ -332,7 +338,7 @@ class _Motor:
                 self.motor_id, position_device_unit, "DISTANCE")
             return position_device_unit, position_real_unit
         else:
-            return print("Settings need to be loaded first.")
+            return logger.info(f'{log_this.space}Settings need to be loaded first.')
 
     def get_velocity(self):
         # Default value for movement: vel = 50.0 deg/s, acc = 25.0003 deg/s/s  TODO: double check the units
@@ -344,6 +350,7 @@ class _Motor:
         return velocity_real, acceleration_real
 
     def get_travel_time(self, distance):
+        # THIS METHOD IS NOT USED YET
         velocity = self.get_velocity()[0]
         acceleration = self.get_velocity()[1]
         current_velocity = 0.01
@@ -380,7 +387,7 @@ class _Motor:
                                                                                          "VELOCITY")
             return velocity_real_units, velocity_device_units
         else:
-            return print("Settings need to be loaded first.")
+            return logger.info(f'{log_this.space}Settings need to be loaded first.')
 
     def get_limit_approach_policy(self):
         # DisallowIllegalMoves = 0
@@ -437,7 +444,7 @@ class _Motor:
             if left_limit <= target_position <= right_limit:
                 return False
             else:
-                # print(left_limit, target_position, right_limit)
+                # logger.info(left_limit, target_position, right_limit)
                 return True
 
     def _check_for_movement_direction(self, previous_position):
@@ -477,7 +484,7 @@ class _Motor:
         if self.settings_loaded:
             self.parent_controller.set_rotation_modes(self.motor_id, mode, direction)
         else:
-            return print("Settings need to be loaded first.")
+            return logger.info(f'{log_this.space}Settings need to be loaded first.')
 
     def set_homing_parameters(self, direction, limit, velocity, offset):
         # direction: int ...
@@ -489,21 +496,21 @@ class _Motor:
             self.parent_controller.set_homing_params_block(
                 self.motor_id, direction, limit, velocity_device_units, offset_device_units)
         else:
-            return print("Settings need to be loaded first.")
+            return logger.info(f'{log_this.space}Settings need to be loaded first.')
 
     def _set_forward_homing(self, velocity=6):
         # TODO: Calibrate offset
         if self.settings_loaded:
             self.set_homing_parameters(1, 1, velocity, -6.5)
         else:
-            return print("Settings need to be loaded first.")
+            return logger.info(f'{log_this.space}Settings need to be loaded first.')
 
     def _set_backwards_homing(self, velocity=6):
         # TODO: Calibrate offset
         if self.settings_loaded:
             self.set_homing_parameters(2, 1, velocity, 3)
         else:
-            return print("Settings need to be loaded first.")
+            return logger.info(f'{log_this.space}Settings need to be loaded first.')
 
     def set_velocity(self, velocity=20, acceleration=30):
         # Velocity over 10 is already very fast to keep up with polling rate 200ms
@@ -520,12 +527,12 @@ class _Motor:
         # Check for illegal positions:
         if scan_from is not None:
             if self.check_for_illegal_position(scan_from):
-                print(f'Motor {self.motor_id}: "from" is outside of the legal space.')
+                logger.info(f'Motor {self.motor_id}: "from" is outside of the legal space.')
                 return
 
         if scan_to is not None:
             if self.check_for_illegal_position(scan_to):
-                print(f'Motor {self.motor_id}: "to" is outside of the legal space.')
+                logger.info(f'Motor {self.motor_id}: "to" is outside of the legal space.')
                 return
 
         # If statements allow us to change only one at the time and keep the previous values for the rest.
@@ -535,7 +542,7 @@ class _Motor:
         self.scan_positions = self.find_range(self.scan_from, self.scan_to, self.scan_step)
 
     # ----------------------------------------------------------------------------------------------    Moving Functions
-
+    @log_this
     def home(self, velocity=10):
         if self.stopped:
             return 1
@@ -558,55 +565,57 @@ class _Motor:
 
         self._start_polling(rate=self._polling_rate)
         self.parent_controller.home(self.motor_id)
-        print(f"Homing motor {self.motor_id}...")
+        logger.info(f'{log_this.space}Homing motor {self.motor_id}...')
         self._while_moving_do(0)
         position = self.get_position()
         if position[1] == 0:
-            print(f"Motor {self.motor_id} successfully homed.")
+            logger.info(f'{log_this.space}Motor {self.motor_id} successfully homed.')
             self.reached_left_limit = False
             self.reached_right_limit = False
         else:
-            print(f"Motor {self.motor_id} failed to home.")
+            logger.info(f'{log_this.space}Motor {self.motor_id} failed to home.')
         self._stop_polling()
         self.current_position = self.get_position()[0]
 
+    @log_this
     def move_to_position(self, position):
         if self.stopped:
             return 1
         illegal_position = self.check_for_illegal_position(position)
-        print(f"Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}")
+        logger.info(f'{log_this.space}Velocity: {self.get_velocity()[0]}, Acceleration: {self.get_velocity()[1]}')
         if not illegal_position:
             self._start_polling()
             position_in_device_unit = self.parent_controller.get_device_unit_from_real_value(self.motor_id,
                                                                                              position,
-                                                                                             "DISTANCE")
+                                                                                             'DISTANCE')
             start_time = time.time()
             self.parent_controller.move_to_position(self.motor_id, position_in_device_unit)
             self._while_moving_do(1)
             self._stop_polling()
             end_time = time.time()
             duration = abs(end_time - start_time)
-            print("Movement duration:", duration)
+            logger.info(f'{log_this.space}Movement duration:', duration)
 
             if self.motor_id != 2:
                 if self.reached_left_limit and not self.is_moving:
-                    print("Left limit handling")
+                    logger.info(f'{log_this.space}Left limit handling')
                     self.set_velocity(velocity=10, acceleration=20)
                     self.set_rotation_mode(mode=2, direction=1)  # Forward direction
                     time.sleep(1)
                     self.reached_left_limit = False
                     self.move_to_position(position)  # Rotate clockwise
                 elif self.reached_right_limit:
-                    print("Right limit handling")
+                    logger.info(f'{log_this.space}Right limit handling')
                     self.set_velocity(velocity=10, acceleration=20)
                     self.set_rotation_mode(mode=2, direction=2)  # Forward direction
                     time.sleep(1)
                     self.reached_right_limit = False
                     self.move_to_position(position)  # Rotate anticlockwise
         else:
-            print("Movement would result in illegal position")
+            logger.info(f'{log_this.space}Movement would result in illegal position')
         self.current_position = self.get_position()[1]
 
+    @log_this
     def stop(self):
         # stop_immediate(self, channel)  might be another option but following version works so far.
         # Based on documentation, stop_profiled is a controlled and safe way of stopping.
@@ -614,7 +623,7 @@ class _Motor:
         self.parent_controller.stop_profiled(self.motor_id)
         self.stopped = True
         self.current_position = self.get_position()[0]
-        print(f"        Motor {self.motor_id} stopped.")
+        logger.info(f'{log_this.space}Motor {self.motor_id} stopped.')
 
 
 class _VirtualMotor(_Motor):
@@ -628,9 +637,12 @@ class _VirtualMotor(_Motor):
         self.current_velocity = 20
         self.current_acceleration = 30
 
+    def __repr__(self):
+        return f'Motor {self.motor_id}'
+
     def _load_settings(self):
         self.settings_loaded = True
-        print(f"    Motor {self.motor_id} setting loaded.")
+        logger.info(f'{log_this.space}Motor {self.motor_id} setting loaded.')
 
     def get_position(self):
         return self.current_position
@@ -651,21 +663,24 @@ class _VirtualMotor(_Motor):
         self.current_velocity = velocity
         self.current_acceleration = acceleration
 
+    @log_this
     def home(self, velocity=10):
         time.sleep(1)
         self.current_position = 0
-        print(f"Motor {self.motor_id} homed.")
+        logger.info(f'{log_this.space}Motor {self.motor_id} homed.')
 
+    @log_this
     def move_to_position(self, position):
         if self.stopped:
             return 1
         time.sleep(1)
-        # print(self.get_travel_time(abs(position)-self.get_position()))
+        # logger.info(self.get_travel_time(abs(position)-self.get_position()))
         self.current_position = position
-        print(f"Motor {self.motor_id} moved to {position}.")
+        logger.info(f'{log_this.space}Motor {self.motor_id} moved to {position}.')
 
+    @log_this
     def stop(self):
-        print(f"        Motor {self.motor_id} stopped.")
+        logger.info(f'{log_this.space}Motor {self.motor_id} stopped.')
         self.stopped = True
 
 
@@ -735,7 +750,7 @@ class Sensor:
 
 
 # Define motor controller object based on the hardware in the lab:
-BSC203ThreeChannelBenchtopStepperMotorController = MotorController(
+motor_controller = MotorController(
     manufacturer="Thorlabs",
     model="BSC203",
     serial="70224414",

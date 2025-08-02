@@ -1,8 +1,14 @@
 # System libraries
 import os
 import time
+import logging
 
 from datetime import timedelta, datetime
+
+import _parameters as param
+
+
+logger = logging.getLogger(__name__)
 
 
 def _days_hours_minutes_seconds(dt):
@@ -15,7 +21,7 @@ def _days_hours_minutes_seconds(dt):
 
 def _save_to_file(data, scan_type, name):
 
-    output_path = "./DataOutput/"  # Where the file is going to be saved
+    output_path = param.output_path
     os.makedirs(output_path, exist_ok=True)
     # Create the directories:
     if scan_type == '1D':
@@ -31,31 +37,31 @@ def _save_to_file(data, scan_type, name):
     with open(f'{output_path}/{name}', "a") as f:
         line = "{};{};{};{};{};{}".format(
             data.iloc[0], data.iloc[1], data.iloc[2], data.iloc[3], data.iloc[4], data.iloc[5], 3)
-        print(line, file=f)
+        logger.info(line, file=f)
 
 
 def _update_progressbar(progress_count, start_time, full_range, thread_signal_progress_status):
-    print("Progres count: ", progress_count)
+    logger.info("Progres count: ", progress_count)
     progress = (100 / full_range) * progress_count
-    print("Progress: ", progress, " %")
+    logger.info("Progress: ", progress, " %")
 
     stop_time = time.time()
     dt = stop_time - start_time
     remaining_positions = full_range - progress_count
     time_to_finish = dt * remaining_positions
     time_to_finish = (time_to_finish / 20) + time_to_finish  # +20% na prejezdy M1 a M2
-    print("Remaining positions = ", remaining_positions)
+    logger.info("Remaining positions = ", remaining_positions)
     delta = timedelta(seconds=time_to_finish)
     (days, hours, minutes, seconds) = _days_hours_minutes_seconds(delta)
-    print("Time to finish: ", days, "d", hours, "h", minutes, "m", seconds, "s")
+    logger.info("Time to finish: ", days, "d", hours, "h", minutes, "m", seconds, "s")
     progress_status = [progress, time_to_finish]
     if hasattr(thread_signal_progress_status, 'emit'):
         thread_signal_progress_status.emit(progress_status)
 
 
-def scan(controller, thread_signal_progress_status):
+def start_scanning(controller, thread_signal_progress_status):
     name = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv"  # Name of the saved file
-    print("Output file name:", name)
+    logger.info("Output file name:", name)
 
     progress_count = 0
 
@@ -90,4 +96,4 @@ def scan(controller, thread_signal_progress_status):
                 _update_progressbar(progress_count, scan_start_time, full_range, thread_signal_progress_status)
                 _save_to_file(measurement_data, controller.scan_type, name)
 
-    print("Done")
+    logger.info("Done")

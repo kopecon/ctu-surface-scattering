@@ -15,7 +15,7 @@ from matplotlib.figure import Figure
 # Custom libraries
 import _backend
 
-controller = _backend.BSC203ThreeChannelBenchtopStepperMotorController
+controller = _backend.motor_controller
 
 
 class Graph2D:
@@ -66,7 +66,7 @@ class Graph2D:
         controller.sensor.max_value_a0 = self.a0_values[-1]
 
 
-class MplCanvas(FigureCanvasQTAgg):
+class _MplCanvas(FigureCanvasQTAgg):
 
     def __init__(self, parent=None, width=10, height=7, dpi=100):
         self.parent = parent
@@ -77,7 +77,7 @@ class MplCanvas(FigureCanvasQTAgg):
 
 class Graph3D:
     def __init__(self):
-        self.canvas = MplCanvas(self)
+        self.canvas = _MplCanvas(self)
         self.plot_data = controller.measurement_data
 
         self.measurement_colormaps = None
