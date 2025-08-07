@@ -654,6 +654,7 @@ def start_gui():
     motor_controller.motor_1.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
     motor_controller.motor_2.set_measurement_parameters(scan_from=float(90), scan_to=float(180), scan_step=float(30))
     motor_controller.motor_3.set_measurement_parameters(scan_from=float(0), scan_to=float(90), scan_step=float(30))
+    motor_controller.set_scan_type('3D')
 
     # Create the Qt Application
     app = QApplication([])

@@ -78,6 +78,7 @@ class MotorController:
         self.sensor = Sensor()
 
         # Measurement parameters
+        self.scan_strategy = _scan.Scan(self)
         self.scan_type = '3D'  # Or '2D'
         self.measurement_data = []
 
@@ -190,12 +191,7 @@ class MotorController:
     @log_this
     def scan(self, thread_signal_progress_status):
         self.measurement_data.clear()
-
-        if self.scan_type == '1D':
-            self.motor_1.scan_positions = [self.motor_1.scan_from]
-            self.motor_2.scan_positions = [self.motor_2.scan_from]
-
-        _scan.start_scanning(self, thread_signal_progress_status)
+        self.scan_strategy.start_scanning(thread_signal_progress_status)
 
     @log_this
     def stop_motors(self):
@@ -215,7 +211,10 @@ class MotorController:
 
     @log_this
     def set_scan_type(self, scan_type: str):
-        self.scan_type = scan_type
+        if scan_type == "1D":
+            self.scan_strategy = _scan.Scan1D(self)
+        elif scan_type == "3D":
+            self.scan_strategy = _scan.Scan3D(self)
 
 
 class _Motor:
