@@ -24,10 +24,10 @@ from nidaqmx.constants import Edge, AcquisitionType
 # omtdJ27QKXivgjvTBr#559060
 
 # Custom modules:
-import _scan
-import _calibration
-import _parameters as param
-from _app_logger import log_this
+from modules import _scan
+from modules import _calibration
+from modules import parameters as param
+from modules.app_logger import log_this
 
 
 logger = logging.getLogger(__name__)
@@ -198,13 +198,12 @@ class MotorController:
         _scan.start_scanning(self, thread_signal_progress_status)
 
     @log_this
-    def stop_motors_and_disconnect(self):
+    def stop_motors(self):
         logger.info(f'{log_this.space}Stopping motors!')
         for motor in self.motors:
             if isinstance(motor, _Motor):
                 logger.info(f'{log_this.space}Stopping motor: {motor.motor_id}')
                 motor.stop()
-        # self.disconnect()
         time.sleep(1)  # To ensure proper communication through USB
 
     @log_this
@@ -281,6 +280,8 @@ class _Motor:
         message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
         # Loop until the motor reaches the desired position and changes message type then stop while loop.
         while message_type != 2 or message_id != value:
+            if self.stopped:
+                logger.info(f"{log_this.space}Can't move. Motor is stopped.")
             self.is_moving = True
             position = self.get_position()
             self.current_position = position[1]
@@ -310,7 +311,8 @@ class _Motor:
         time.sleep(0.5)
         position = self.get_position()
         self.current_position = position[1]
-        logger.info(f'{log_this.space}Motor {self.motor_id} At position {position[0]} [device units] {position[1]} [real-world units]')
+        logger.info(f'{log_this.space}Motor {self.motor_id} At position {position[0]} [device units] {position[1]} '
+                    f'[real-world units]')
 
     def _load_settings(self):
         """
@@ -672,6 +674,7 @@ class _VirtualMotor(_Motor):
     @log_this
     def move_to_position(self, position):
         if self.stopped:
+            logger.info(f"{log_this.space}Can't move. Motor is stopped.")
             return 1
         time.sleep(1)
         # logger.info(self.get_travel_time(abs(position)-self.get_position()))

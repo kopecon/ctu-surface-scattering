@@ -11,7 +11,7 @@ import inspect
 import logging.config
 import json
 
-import _parameters as param
+from modules import parameters as param
 
 
 logger = logging.getLogger('log_this')
@@ -66,7 +66,7 @@ def generate_default_log_config_file() -> None:
         },
         "filters": {
             "no_errors": {
-                "()": "_app_logger.NonErrorFilter"
+                "()": "modules.app_logger.NonErrorFilter"
             }
         },
         "handlers": {

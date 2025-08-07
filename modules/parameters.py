@@ -2,8 +2,11 @@ from pathlib import Path
 
 
 # File structure
-project_dir: Path = Path()  # Path to the root directory
+project_dir: Path = Path('.').parent  # Path to the root directory
 output_path: Path = project_dir / 'DataOutput'
+output_path_1d = output_path / "data_1D"
+output_path_3d = output_path / "data_3D"
+
 
 # Logger
 logging_configs_path: Path = project_dir / 'logging_configs'
@@ -43,4 +46,4 @@ logger_backup_count: int = 3  # Logger creates at most 3 backup log files.
 logger_max_size: int = 1000000
 
 # GUI
-gui_update_rate = 500  # [ms]
+gui_update_rate = 500  # [ms]  How often does the information on the screen updates (such as motor position etc.)

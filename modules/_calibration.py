@@ -1,5 +1,5 @@
 import logging
-from _app_logger import log_this
+from modules.app_logger import log_this
 
 
 logger = logging.getLogger(__name__)

@@ -19,10 +19,10 @@ from PySide6.QtWidgets import (
 )
 
 # Custom modules:
-from _backend import motor_controller
-import _real_time_graphs
-import _parameters as param
-
+from modules.backend import motor_controller
+from modules import _real_time_graphs
+from modules import parameters as param
+from utils.time_format_processing import days_hours_minutes_seconds
 
 logger = logging.getLogger(__name__)
 
@@ -52,14 +52,6 @@ Dependent Software:
     Correct motors have to be set up in the Thorlabs Kinesis user interface.
     Kinesis user interface has to be closed while this program is running, or the controller fails to connect.
 """
-
-
-def days_hours_minutes_seconds(dt):
-    days = dt.days
-    hours = dt.seconds // 3600
-    minutes = (dt.seconds // 60) % 60
-    seconds = dt.seconds - ((dt.seconds // 3600) * 3600) - ((dt.seconds % 3600 // 60) * 60)
-    return days, hours, minutes, seconds
 
 
 class Window(QMainWindow):
@@ -257,47 +249,47 @@ class Window(QMainWindow):
         self._layout.addWidget(self._connection_button, 0, 2, 1, 1)
         self._layout.addWidget(_url_label, 0, 6, 1, 3)
         self._layout.addWidget(_controller_setup_title_label, 0, 0, 1, 2)
-        self._layout.addWidget(QHLine(), 1, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_QHLine(), 1, 0, 1, self._layout.columnCount())
         self._layout.addWidget(_motor_setup_title_label, 2, 0, 1, 1)
         self._layout.addWidget(self._m1_from_label, 3, 2, 1, 1)
         self._layout.addWidget(_m1_to_label, 3, 3, 1, 1)
         self._layout.addWidget(_m1_step_label, 3, 4, 1, 1)
-        self._layout.addWidget(self._m1_position_label, 3, 6, 1, 1)
+        self._layout.addWidget(self._m1_position_label, 3, 6, 1, 2)
         self._layout.addWidget(_m1_label, 4, 1, 1, 1)
         self._layout.addWidget(self._m1_from_value, 4, 2, 1, 1)
         self._layout.addWidget(self._m1_to_value, 4, 3, 1, 1)
         self._layout.addWidget(self._m1_step_value, 4, 4, 1, 1)
-        self._layout.addWidget(QVLine(), 4, 5, 1, 1)
+        self._layout.addWidget(_QVLine(), 4, 5, 1, 1)
         self._layout.addWidget(self._m1_move_to_value, 4, 6, 1, 1)
         self._layout.addWidget(self._move_1_to_button, 4, 7, 1, 1)
         self._layout.addWidget(self._m2_from_label, 5, 2, 1, 1)
         self._layout.addWidget(_m2_to_label, 5, 3, 1, 1)
         self._layout.addWidget(_m2_step_label, 5, 4, 1, 1)
-        self._layout.addWidget(self._m2_position_label, 5, 6, 1, 1)
+        self._layout.addWidget(self._m2_position_label, 5, 6, 1, 2)
         self._layout.addWidget(_m2_label, 6, 1, 1, 1)
         self._layout.addWidget(self._m2_from_value, 6, 2, 1, 1)
         self._layout.addWidget(self._m2_to_value, 6, 3, 1, 1)
         self._layout.addWidget(self._m2_step_value, 6, 4, 1, 1)
-        self._layout.addWidget(QVLine(), 6, 5, 1, 1)
+        self._layout.addWidget(_QVLine(), 6, 5, 1, 1)
         self._layout.addWidget(self._m2_move_to_value, 6, 6, 1, 1)
         self._layout.addWidget(self._move_2_to_button, 6, 7, 1, 1)
         self._layout.addWidget(_m3_from_label, 7, 2, 1, 1)
         self._layout.addWidget(_m3_to_label, 7, 3, 1, 1)
         self._layout.addWidget(_m3_step_label, 7, 4, 1, 1)
-        self._layout.addWidget(self._m3_position_label, 7, 6, 1, 1)
+        self._layout.addWidget(self._m3_position_label, 7, 6, 1, 2)
         self._layout.addWidget(_m3_label, 8, 1, 1, 1)
         self._layout.addWidget(self._m3_from_value, 8, 2, 1, 1)
         self._layout.addWidget(self._m3_to_value, 8, 3, 1, 1)
         self._layout.addWidget(self._m3_step_value, 8, 4, 1, 1)
-        self._layout.addWidget(QVLine(), 8, 5, 1, 1)
+        self._layout.addWidget(_QVLine(), 8, 5, 1, 1)
         self._layout.addWidget(self._m3_move_to_value, 8, 6, 1, 1)
         self._layout.addWidget(self._move_3_to_button, 8, 7, 1, 1)
-        self._layout.addWidget(QHLine(), 9, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_QHLine(), 9, 0, 1, self._layout.columnCount())
         self._layout.addWidget(_calibration_title_label, 10, 0, 1, 1)
         self._layout.addWidget(_calibration_m1_label, 11, 2, 1, 1)
         self._layout.addWidget(_calibration_m2_label, 11, 3, 1, 1)
         self._layout.addWidget(_calibration_m3_label, 11, 4, 1, 1)
-        self._layout.addWidget(QVLine(), 12, 5, 1, 1)
+        self._layout.addWidget(_QVLine(), 12, 5, 1, 1)
         self._layout.addWidget(_calibration_m3_range_label, 11, 6, 1, 1)
         self._layout.addWidget(_calibration_where_label, 12, 1, 1, 1)
         self._layout.addWidget(self._calibration_m1_value, 12, 2, 1, 1)
@@ -305,7 +297,7 @@ class Window(QMainWindow):
         self._layout.addWidget(self._calibration_m3_value, 12, 4, 1, 1)
         self._layout.addWidget(self._calibration_m3_range_value, 12, 6, 1, 1)
         self._layout.addWidget(self._calibrate_button, 12, 7, 1, 1)
-        self._layout.addWidget(QHLine(), 14, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_QHLine(), 14, 0, 1, self._layout.columnCount())
         self._layout.addWidget(_measurement_setup_title_label, 15, 0, 1, 1)
         self._layout.addWidget(_measurement_num_label, 16, 2, 1, 1)
         self._layout.addWidget(self._number_of_measurement_points_value, 16, 3, 1, 1)
@@ -318,7 +310,7 @@ class Window(QMainWindow):
         self._layout.addWidget(_time_to_finish_title_label, 19, 2, 1, 1)
         self._layout.addWidget(self._time_to_finish_value_label, 19, 3, 1, 1)
         self._layout.addWidget(self._progress_bar, 20, 2, 1, 3)
-        self._layout.addWidget(QHLine(), 21, 0, 1, self._layout.columnCount())
+        self._layout.addWidget(_QHLine(), 21, 0, 1, self._layout.columnCount())
         self._layout.addWidget(_home_title_label, 22, 0, 1, 1)
         self._layout.addWidget(self._stop_button, 22, 6, 4, 3, alignment=Qt.AlignmentFlag.AlignCenter)
         self._layout.addWidget(self._home1_button, 23, 2, 1, 1)
@@ -398,9 +390,24 @@ class Window(QMainWindow):
 
     def update_motor_positions(self):
         # This is called periodically in background task to update motor positions in GUI in real time
-        self._m1_position_label.setText(f"Position: {round(motor_controller.motor_1.current_position, 1)}")
-        self._m2_position_label.setText(f"Position: {round(motor_controller.motor_2.current_position, 1)}")
-        self._m3_position_label.setText(f"Position: {round(motor_controller.motor_3.current_position, 1)}")
+
+        if motor_controller.motor_1.stopped:
+            self._m1_position_label.setText(
+                f"Position: {round(motor_controller.motor_1.current_position, 1)} (Stopped)")
+        else:
+            self._m1_position_label.setText(f"Position: {round(motor_controller.motor_1.current_position, 1)}")
+
+        if motor_controller.motor_2.stopped:
+            self._m2_position_label.setText(
+                f"Position: {round(motor_controller.motor_2.current_position, 1)} (Stopped)")
+        else:
+            self._m2_position_label.setText(f"Position: {round(motor_controller.motor_2.current_position, 1)}")
+
+        if motor_controller.motor_3.stopped:
+            self._m3_position_label.setText(
+                f"Position: {round(motor_controller.motor_3.current_position, 1)} (Stopped)")
+        else:
+            self._m3_position_label.setText(f"Position: {round(motor_controller.motor_3.current_position, 1)}")
 
     def _set_disconnected_layout(self):
         self._disable_every_widget(QPushButton)
@@ -555,18 +562,22 @@ class Window(QMainWindow):
         worker.finished.connect(self._reset_layout)
 
     def stop_motors(self):
-        motor_controller.stop_motors_and_disconnect()
-        # self._set_disconnected_layout()
+        if self._stop_button.text() == "STOP":
+            motor_controller.stop_motors()
+            self._stop_button.setText("UNSTOP")
+        else:
+            motor_controller.unstop_motors()
+            self._stop_button.setText("STOP")
 
     def connect_or_disconnect_devices(self):
         if self._connection_button.text() == "Connect":
             # Connects to the controller and returns 0 if connected correctly
             _connection_check = motor_controller.connect()
-            if _connection_check == 1:
+            if _connection_check not in (0, 1):
                 self._set_disconnected_layout()
                 # Not connected (Error)
                 return 1
-            elif _connection_check == 0:
+            else:
                 # Connected
                 self._set_connected_layout()
         elif self._connection_button.text() == "Disconnect":
@@ -616,20 +627,20 @@ class ScanningThread(QThread):
         motor_controller.sensor.toggle_graph_2D_timer = self.thread_signal_toggle_2d_graph_timer
 
     def run(self) -> None:
-        motor_controller.start_scanning(self.thread_signal_progress_status)
+        motor_controller.scan(self.thread_signal_progress_status)
         return
 
 
-class QHLine(QFrame):
+class _QHLine(QFrame):
     def __init__(self):
-        super(QHLine, self).__init__()
+        super(_QHLine, self).__init__()
         self.setFrameShape(QFrame.Shape.HLine)
         self.setFrameShadow(QFrame.Shadow.Sunken)
 
 
-class QVLine(QFrame):
+class _QVLine(QFrame):
     def __init__(self):
-        super(QVLine, self).__init__()
+        super(_QVLine, self).__init__()
         self.setFrameShape(QFrame.Shape.VLine)
         self.setFrameShadow(QFrame.Shadow.Sunken)
         self.setFixedSize(self.frameWidth(), 30)

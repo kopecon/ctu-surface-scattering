@@ -13,9 +13,9 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 from matplotlib.figure import Figure
 
 # Custom libraries
-import _backend
+from modules import backend
 
-controller = _backend.motor_controller
+controller = backend.motor_controller
 
 
 class Graph2D:

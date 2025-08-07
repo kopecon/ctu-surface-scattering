@@ -1,8 +1,8 @@
 import logging
 
-from _gui import start_gui
-from _app_logger import log_this, setup_logging
-import _parameters as param
+from modules.gui import start_gui
+from modules.app_logger import log_this, setup_logging
+from modules import parameters as param
 
 # TODO: motor 3 from 90 60 30 0 270 300 330 does not graph properly  (Software)
 # FIXME: Motor 3 2 1 positions display in GUI is stuck
