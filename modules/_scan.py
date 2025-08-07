@@ -103,5 +103,29 @@ class Scan1D(Scan3D):
     def __init__(self, controller):
         super().__init__(controller)
         self.output_path = param.output_path_1d
-        self.motor_1.scan_positions = [self.motor_1.scan_from]
-        self.motor_2.scan_positions = [self.motor_2.scan_from]
+
+    def start_scanning(self, thread_signal_progress_status):
+        self.file_name = str(datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + ".csv")  # Name of the saved file
+        logger.info(f"{log_this.space}Output file name: {self.file_name}")
+
+        progress_count = 0
+
+        full_range = (len(self.motor_3.scan_positions))
+
+        self.motor_1.move_to_position(self.motor_1.scan_from)
+        self.motor_2.move_to_position(self.motor_2.scan_from)
+
+        for k in self.motor_3.scan_positions:
+            scan_start_time = time.time()
+            stop_check = self.motor_3.move_to_position(k)
+            if stop_check == 1:
+                # Motor was called to stop => end scanning
+                return logger.info(f"{log_this.space}Motors are stopped. Aborting...")
+
+            measurement_data = self.controller.collect_sensor_data()
+
+            progress_count += 1
+            self._update_progressbar(progress_count, scan_start_time, full_range, thread_signal_progress_status)
+            self._save_to_file(measurement_data)
+
+        logger.info(f"{log_this.space}Scanning done")
