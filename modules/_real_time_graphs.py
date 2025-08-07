@@ -11,6 +11,7 @@ matplotlib.use('Qt5Agg')
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+from matplotlib.ticker import FuncFormatter
 
 # Custom libraries
 from modules import backend
@@ -77,25 +78,38 @@ class _MplCanvas(FigureCanvasQTAgg):
 
 class Graph3D:
     def __init__(self):
+        # Create the Matplotlib canvas and get its axes
         self.canvas = _MplCanvas(self)
-        self.plot_data = controller.measurement_data
+        self.axes = self.canvas.axes
 
+        self.plot_data = controller.measurement_data
         self.measurement_colormaps = None
 
         np.random.seed(19680801)
 
-        self.canvas.axes.view_init(0, 90)
+        self.axes.view_init(0, 90)
 
-        self.canvas.axes.set_xlabel('Motor 3 angle')
-        self.canvas.axes.set_xticks(controller.motor_3.scan_positions)
-        self.canvas.axes.set_ylabel('Motor 2 angle')
-        self.canvas.axes.set_yticks(controller.motor_2.scan_positions)
-        self.canvas.axes.set_zlabel('A0')
+        # Axis labels
+        self.axes.set_xlabel('Motor 3 angle')
+        self.axes.set_ylabel('Motor 2 angle')
+        self.axes.set_zlabel('A0')
 
-        self.ani = matplotlib.animation.FuncAnimation(self.canvas.figure, self.update, frames=100)
+        # Set continuous ticks and wrapping formatter
+        self.axes.set_xticks(controller.motor_3.scan_positions)
+        self.axes.xaxis.set_major_formatter(FuncFormatter(self.wrap_angle))
+        self.axes.set_yticks(controller.motor_2.scan_positions)
+
+        # Animation
+        self.ani = matplotlib.animation.FuncAnimation(
+            self.canvas.figure, self.update, frames=100
+        )
+
+    @staticmethod
+    def wrap_angle(angle, pos):
+        return int(angle % 360)
 
     def update(self, t):
-        _ = t  # t is not used. Delete it.
+        _ = t
         self.clear_graph()
         self.prepare_color_scheme()
 
@@ -103,39 +117,55 @@ class Graph3D:
             for j, motor_2_position in enumerate(controller.motor_2.scan_positions):
                 x = []
                 y = []
-                color_scale_factor = i / len(controller.motor_1.scan_positions)
-                color_scale_factor = 1 - color_scale_factor  # Turn the scaling from dark to light
-                for data_entry in self.plot_data:
-                    if math.isclose(data_entry['motor_1_position'], motor_1_position, abs_tol=0.5) and \
-                            math.isclose(data_entry['motor_2_position'], motor_2_position, abs_tol=0.5):
-                        x.append(data_entry['motor_3_position'])
-                        y.append(data_entry['a0'])
-                self.canvas.axes.plot(x, y, zs=motor_2_position, zdir='y',
-                                      color=self.measurement_colormaps[j](color_scale_factor), alpha=0.8)
+                color_scale_factor = 1 - (i / len(controller.motor_1.scan_positions))
 
-        return []  # Return [] to prevent pycharm warnings but no other reason.
+                for data_entry in self.plot_data:
+                    if data_entry['motor_3_position'] < 270:
+                        data_entry['motor_3_position'] += 360
+                    if (math.isclose(data_entry['motor_1_position'], motor_1_position, abs_tol=0.5) and
+                            math.isclose(data_entry['motor_2_position'], motor_2_position, abs_tol=0.5)):
+                        x.append(data_entry['motor_3_position'])  # continuous angle
+                        y.append(data_entry['a0'])
+
+                self.axes.plot(
+                    x, y, zs=motor_2_position, zdir='y',
+                    color=self.measurement_colormaps[j](color_scale_factor),
+                    alpha=0.8
+                )
+
+        return []
 
     def prepare_color_scheme(self):
-        sequential_colormaps = ['Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds', 'YlOrBr', 'YlOrRd', 'OrRd',
-                                'PuRd', 'RdPu', 'BuPu', 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
+        sequential_colormaps = [
+            'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+            'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu', 'GnBu',
+            'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn'
+        ]
 
-        # Change the string for the color object of matplotlib.colormaps and resample it based on motor_1 positions
         for i, color in enumerate(sequential_colormaps):
-            sequential_colormaps[i] = colormaps[color].resampled(len(controller.motor_1.scan_positions))
+            sequential_colormaps[i] = colormaps[color].resampled(
+                len(controller.motor_1.scan_positions)
+            )
 
-        # Take only the amount of colormaps needed so each motor 2 position has its own colormap
-        sequential_colormaps = sequential_colormaps[0:len(controller.motor_2.scan_positions)]
-
-        # Set the colormap for the current measurement
+        sequential_colormaps = sequential_colormaps[:len(controller.motor_2.scan_positions)]
         self.measurement_colormaps = sequential_colormaps
 
     def clear_graph(self):
-        self.canvas.axes.set_xticks(controller.motor_3.scan_positions)
-        self.canvas.axes.set_xlim([controller.motor_3.scan_positions[0]-10, controller.motor_3.scan_positions[-1]+10])
-        self.canvas.axes.set_yticks(controller.motor_2.scan_positions)
-        self.canvas.axes.set_ylim([controller.motor_2.scan_positions[0]-10, controller.motor_2.scan_positions[-1]+10])
+        raw_positions = controller.motor_3.scan_positions
+        for i, position in enumerate(raw_positions):
+            if position < 270:
+                raw_positions[i] += 360
+        self.axes.set_xticks(raw_positions)
+        self.axes.set_xlim([raw_positions[0] - 10, raw_positions[-1] + 10])
+        self.axes.xaxis.set_major_formatter(FuncFormatter(self.wrap_angle))
 
-        for art in list(self.canvas.axes.lines):
+        self.axes.set_yticks(controller.motor_2.scan_positions)
+        self.axes.set_ylim([
+            controller.motor_2.scan_positions[0] - 10,
+            controller.motor_2.scan_positions[-1] + 10
+        ])
+
+        for art in list(self.axes.lines):
             art.remove()
 
         self.ani.resume()
