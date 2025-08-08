@@ -742,7 +742,7 @@ class Sensor:
                 data_ratio = self.current_a0 / self.current_a1
                 return self.current_a0, self.current_a1, data_ratio
 
-        except nidaqmx.errors.DaqNotFoundError:
+        except (nidaqmx.errors.DaqNotFoundError, nidaqmx.DaqError):
             # This part is for debugging, when accessing measurement without the hardware.
             # The type of the nidaqmx.error to except seems to be changing based on which PC the program runs on.
             self.current_a0 = random.randint(42, 70)
