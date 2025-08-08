@@ -199,7 +199,7 @@ class CustomToolbar(NavigationToolbar):
         super().__init__(canvas, parent)
 
         # Create a button
-        self.isometric_btn = QPushButton("Front", self)
+        self.isometric_btn = QPushButton("ISO", self)
         self.isometric_btn.clicked.connect(self.set_isometric_view)
 
         # Add the button to the toolbar
