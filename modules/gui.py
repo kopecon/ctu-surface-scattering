@@ -29,30 +29,6 @@ logger = logging.getLogger(__name__)
 
 logger.info("Library import done.")
 
-"""
-The surface scattering measuring project consists of 3 files:
-
-    surface_scattering_gui.py: The main file that is meant to be executed. Builds a GUI to interact with the lab
-        measurement device.
-
-    surface_scattering_backend.py: Provides access and control of the hardware.  
-    
-    surface_scattering_scan.py: Provides the scan calculations and output file storing
-
-Hardware:
-    Controller: 
-        BSC203 - Three-Channel Benchtop Stepper Motor Controller 
-        Link - https://www.thorlabs.com/thorproduct.cfm?partnumber=BSC203
-    Motors: 
-        HDR50 - Heavy-Duty Rotation Stage with Stepper Motor
-        Link - https://www.thorlabs.com/newgrouppage9.cfm?objectgroup_id=1064
-
-Dependent Software:
-    "Thorlabs Kinesis" needs to be installed on the device which is to be executing this python script.
-    Correct motors have to be set up in the Thorlabs Kinesis user interface.
-    Kinesis user interface has to be closed while this program is running, or the controller fails to connect.
-"""
-
 
 class Window(QMainWindow):
     def __init__(self):
@@ -430,6 +406,7 @@ class Window(QMainWindow):
         self._m2_from_label.setText("Where")
         self._m3_from_value.setText('270')
         self._m3_to_value.setText('90')
+        self._m2_to_value.setText(self._m2_from_value.text())
 
         # Update the motor parameters to match the values in the lines
         self._update_all_motor_parameters()
@@ -440,6 +417,7 @@ class Window(QMainWindow):
 
         self._m1_from_label.setText("From")
         self._m2_from_label.setText("From")
+        self._m2_to_value.setText("180")
         self._m3_from_value.setText('0')
         self._m3_to_value.setText('90')
 
@@ -482,6 +460,29 @@ class Window(QMainWindow):
         else:
             self.graph_window.show()
             self.graph_window.graph_2d.reset_max_value()
+
+            # Get geometry of main window
+            main_geom = self.frameGeometry()
+
+            # Position second window to the right of main window
+            second_x = main_geom.x() + main_geom.width()
+            second_y = main_geom.y()
+
+            self.graph_window.move(second_x, second_y)
+            self.graph_window.show()
+            self.graph_window.raise_()
+            self.graph_window.activateWindow()
+
+    def position_second_window(self):
+        main_geom = self.frameGeometry()
+        second_x = main_geom.x() + main_geom.width()
+        second_y = main_geom.y()
+        self.graph_window.move(second_x, second_y)
+
+    def moveEvent(self, event):
+        super().moveEvent(event)
+        if self.graph_window is not None:
+            self.position_second_window()
 
     @staticmethod
     def _update_motor_parameters(edited_line: QLineEdit, motor_id, parameter):

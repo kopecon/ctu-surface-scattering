@@ -12,6 +12,7 @@ matplotlib.use('Qt5Agg')
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 from matplotlib.ticker import FuncFormatter
+from PySide6.QtWidgets import QPushButton
 
 # Custom libraries
 from modules import backend
@@ -96,6 +97,7 @@ class Graph3D:
 
         # Set continuous ticks and wrapping formatter
         self.axes.set_xticks(controller.motor_3.scan_positions)
+        # noinspection PyTypeChecker
         self.axes.xaxis.set_major_formatter(FuncFormatter(self.wrap_angle))
         self.axes.set_yticks(controller.motor_2.scan_positions)
 
@@ -157,6 +159,7 @@ class Graph3D:
                 raw_positions[i] += 360
         self.axes.set_xticks(raw_positions)
         self.axes.set_xlim([raw_positions[0] - 10, raw_positions[-1] + 10])
+        # noinspection PyTypeChecker
         self.axes.xaxis.set_major_formatter(FuncFormatter(self.wrap_angle))
 
         self.axes.set_yticks(controller.motor_2.scan_positions)
@@ -185,7 +188,25 @@ class GraphWindow(QMainWindow):
 
         self.graph_2d = Graph2D()
         self.graph_3d = Graph3D()
-        self.toolbar = NavigationToolbar(self.graph_3d.canvas, self)
+        self.toolbar = CustomToolbar(self.graph_3d.canvas, self)
         self._layout.addWidget(self.toolbar)
         self._layout.addWidget(self.graph_2d.graphWidget, 2, 0)
         self._layout.addWidget(self.graph_3d.canvas, 1, 0)
+
+
+class CustomToolbar(NavigationToolbar):
+    def __init__(self, canvas, parent):
+        super().__init__(canvas, parent)
+
+        # Create a button
+        self.isometric_btn = QPushButton("Front", self)
+        self.isometric_btn.clicked.connect(self.set_isometric_view)
+
+        # Add the button to the toolbar
+        self.addWidget(self.isometric_btn)
+
+    def set_isometric_view(self):
+        # Assumes the first axes is 3D
+        ax = self.canvas.figure.axes[0]
+        ax.view_init(elev=30, azim=135)  # classic isometric angles
+        self.canvas.draw_idle()
