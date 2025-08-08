@@ -72,23 +72,14 @@ class Scan3D(Scan):
             self.motor_3.scan_positions))
 
         for i in self.motor_1.scan_positions:
-            stop_check = self.motor_1.move_to_position(i)
-            if stop_check == 1:
-                # Motor was called to stop => end scanning
-                return logger.info(f"{log_this.space}Motors are stopped. Aborting...")
+            self.motor_1.move_to_position(i)
 
             for j in self.motor_2.scan_positions:
-                stop_check = self.motor_2.move_to_position(j)
-                if stop_check == 1:
-                    # Motor was called to stop => end scanning
-                    return logger.info(f"{log_this.space}Motors are stopped. Aborting...")
+                self.motor_2.move_to_position(j)
 
                 for k in self.motor_3.scan_positions:
                     scan_start_time = time.time()
-                    stop_check = self.motor_3.move_to_position(k)
-                    if stop_check == 1:
-                        # Motor was called to stop => end scanning
-                        return logger.info(f"{log_this.space}Motors are stopped. Aborting...")
+                    self.motor_3.move_to_position(k)
 
                     measurement_data = self.controller.collect_sensor_data()
 
@@ -117,10 +108,7 @@ class Scan1D(Scan3D):
 
         for k in self.motor_3.scan_positions:
             scan_start_time = time.time()
-            stop_check = self.motor_3.move_to_position(k)
-            if stop_check == 1:
-                # Motor was called to stop => end scanning
-                return logger.info(f"{log_this.space}Motors are stopped. Aborting...")
+            self.motor_3.move_to_position(k)
 
             measurement_data = self.controller.collect_sensor_data()
 
