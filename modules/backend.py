@@ -680,6 +680,8 @@ class _VirtualMotor(_Motor):
 
     @log_this
     def home(self, velocity=10):
+        if self.stopped:
+            return logger.info(f"{log_this.space}Motors are stopped. Aborting...")
         time.sleep(1)
         self.current_position = 0
         logger.info(f'{log_this.space}Motor {self.motor_id} homed.')
