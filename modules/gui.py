@@ -300,7 +300,7 @@ class Window(QMainWindow):
         self.timer.setInterval(param.gui_update_rate)
         self.timer.timeout.connect(self.update_motor_positions)
         self.timer.start()
-        self._disable_every_widget(QPushButton)
+        self._disable_every_widget()
         self._home_all_button.setEnabled(True)
         self._connection_button.setEnabled(True)
         self._graph_button.setEnabled(True)
@@ -352,13 +352,13 @@ class Window(QMainWindow):
                     all_window_widgets.remove(widget)
         return all_window_widgets
 
-    def _enable_every_widget(self, *widget_types):
+    def _enable_every_widget(self, widget_types=(QPushButton, QCheckBox)):
         widgets = self.get_window_widgets(widget_types)
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
                 widget.setEnabled(True)
 
-    def _disable_every_widget(self, *widget_types):
+    def _disable_every_widget(self, widget_types=(QPushButton, QCheckBox)):
         widgets = self.get_window_widgets(widget_types)
         for widget in widgets:
             if hasattr(widget, 'setEnabled'):
@@ -386,13 +386,13 @@ class Window(QMainWindow):
             self._m3_position_label.setText(f"Position: {round(motor_controller.motor_3.current_position, 1)}")
 
     def _set_disconnected_layout(self):
-        self._disable_every_widget(QPushButton)
+        self._disable_every_widget()
         self._stop_button.setEnabled(True)
         self._connection_button.setEnabled(True)
         self._connection_button.setText("Connect")
 
     def _set_connected_layout(self):
-        self._enable_every_widget(QPushButton)
+        self._enable_every_widget()
         self._connection_button.setText("Disconnect")
 
     def _restrict_value_editing_for_1d_scan(self):
@@ -540,7 +540,7 @@ class Window(QMainWindow):
         self.start_homing(1)
         self.start_homing(2)
         self.start_homing(3)
-        self._enable_every_widget(QPushButton)
+        self._enable_every_widget()
 
     def move_to(self, motor_id, position):
         worker = MovingThread(motor_id, position)
@@ -553,7 +553,7 @@ class Window(QMainWindow):
         worker.thread_signal_progress_status.connect(self._update_progress_bar)
         worker.thread_signal_toggle_2d_graph_timer.connect(self.graph_2D.toggle_timer)
 
-        self._disable_every_widget(QPushButton)
+        self._disable_every_widget()
         self._stop_button.setEnabled(True)
         self.graph_window.graph_3d.clear_graph()
         self._graph_button.setEnabled(True)
