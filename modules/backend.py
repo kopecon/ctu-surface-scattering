@@ -78,7 +78,7 @@ class MotorController:
         self.sensor = Sensor()
 
         # Measurement parameters
-        self.scan_strategy = _scan.Scan(self)
+        self.scan_strategy = _scan.Scan3D(self)
         self.scan_type = '3D'  # Or '2D'
         self.measurement_data = []
 
@@ -277,16 +277,24 @@ class _Motor:
         # Works in combination with polling. "start polling, wait, stop polling" to perform tasks while moving.
         self.parent_controller.clear_message_queue(self.motor_id)
         message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
+
         # Loop until the motor reaches the desired position and changes message type then stop while loop.
         while message_type != 2 or message_id != value:
+            message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
+            # Your code in the loop starts here:
+            # Check if the motors are stopped
             if self.stopped:
                 logger.info(f"{log_this.space}Can't move. Motor is stopped.")
+
+            # Gather information about the movement and resolve illegal movements
             self.is_moving = True
+
             position = self.get_position()
             self.current_position = position[1]
-            message_type, message_id, _ = self.parent_controller.wait_for_message(self.motor_id)
+
             movement_direction = self._check_for_movement_direction(position[1])
             illegal_position = self.check_for_illegal_position(position[1])
+
             if illegal_position and value != 0:
                 if abs(position[1] - self.hardware_limits[1]) < abs(position[1] - self.hardware_limits[0]) \
                         and movement_direction == 'FORWARD':
@@ -303,11 +311,17 @@ class _Motor:
                     self.reached_right_limit = False
                     break
 
+        # The motor reached the desired position
         self.is_moving = False
+
         self.set_velocity(velocity=50, acceleration=25)  # Set default velocity parameters
+
         if self.motor_id != 2:
             self.set_rotation_mode(mode=2, direction=0)  # Return to quickest pathing mode
-        time.sleep(0.5)
+
+        time.sleep(0.5)  # To ensure proper communication and placement of the parts. Maybe could be shorter time.
+
+        # Mark the last position
         position = self.get_position()
         self.current_position = position[1]
         logger.info(f'{log_this.space}Motor {self.motor_id} At position {position[0]} [device units] {position[1]} '
