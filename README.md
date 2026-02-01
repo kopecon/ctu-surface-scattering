@@ -28,7 +28,7 @@ The software coordinates motor movement, controls the measurement workflow, and 
 ├── surface_scattering.py   # Main control script
 ├── modules/               # Core device modules
 ├── utils/                 # Helper utilities
-├── legacy/                # Older implementations
+├── legacy/                # Older implementations (not by kopecon)
 └── requirements.txt
 ```
 
